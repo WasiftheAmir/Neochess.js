@@ -143,6 +143,7 @@ type InternalMove = {
   to: number
   piece: PieceSymbol
   captured?: PieceSymbol
+  capturedColor?: Color
   promotion?: PieceSymbol
   flags: number
 }
@@ -156,6 +157,9 @@ interface History {
   fenEpSquare: number
   halfMoves: number
   moveNumber: number
+  kingCaptured: { captured: boolean; winner: Color | null }
+  retaliationPending: { pending: boolean; pendingWinner: Color | null }
+  consecutivePasses: number
 }
 
 export class Move {
@@ -164,6 +168,7 @@ export class Move {
   to: Square
   piece: PieceSymbol
   captured?: PieceSymbol
+  capturedColor?: Color
   promotion?: PieceSymbol
 
   /**
@@ -185,7 +190,7 @@ export class Move {
     before: string,
     after: string,
   ) {
-    const { color, piece, from, to, flags, captured, promotion } = internal
+    const { color, piece, from, to, flags, captured, capturedColor, promotion } = internal
 
     const fromAlgebraic = algebraic(from)
     const toAlgebraic = algebraic(to)
@@ -210,6 +215,10 @@ export class Move {
 
     if (captured) {
       this.captured = captured
+    }
+
+    if (capturedColor) {
+      this.capturedColor = capturedColor
     }
 
     if (promotion) {
@@ -692,6 +701,7 @@ function addMove(
   piece: PieceSymbol,
   captured: PieceSymbol | undefined = undefined,
   flags: number = BITS.NORMAL,
+  capturedColor: Color | undefined = undefined,
 ) {
   const r = rank(to)
 
@@ -704,6 +714,7 @@ function addMove(
         to,
         piece,
         captured,
+        capturedColor,
         promotion,
         flags: flags | BITS.PROMOTION,
       })
@@ -715,6 +726,7 @@ function addMove(
       to,
       piece,
       captured,
+      capturedColor,
       flags,
     })
   }
@@ -761,6 +773,23 @@ export class Chess {
   // tracks number of times a position has been seen for repetition checking
   private _positionCount = new Map<bigint, number>()
 
+  // NeoChess: tracks whether a king has been physically captured.
+  private _kingCaptured: { captured: boolean; winner: Color | null } = {
+    captured: false,
+    winner: null,
+  }
+
+  // NeoChess: tracks whether the losing side has a one-move retaliation window.
+  // Set when White captures Black's king and Black can still take the White king.
+  // Cleared (and _kingCaptured resolved) after Black's retaliation move.
+  private _retaliationPending: { pending: boolean; pendingWinner: Color | null } = {
+    pending: false,
+    pendingWinner: null,
+  }
+
+  // NeoChess: tracks consecutive passes for the pass-draw rule.
+  private _consecutivePasses = 0
+
   constructor(fen = DEFAULT_POSITION, { skipValidation = false } = {}) {
     this._comments = {}
     this._suffixes = {}
@@ -782,6 +811,10 @@ export class Chess {
     this._header = preserveHeaders ? this._header : { ...HEADER_TEMPLATE }
     this._hash = this._computeHash()
     this._positionCount = new Map<bigint, number>()
+    // NeoChess: reset king-capture and retaliation state whenever the board is cleared.
+    this._kingCaptured = { captured: false, winner: null }
+    this._retaliationPending = { pending: false, pendingWinner: null }
+    this._consecutivePasses = 0
 
     /*
      * Delete the SetUp and FEN headers (if preserved), the board is empty and
@@ -1047,6 +1080,10 @@ export class Chess {
     this._comments = {}
     this._suffixes = {}
     this._nags = {}
+    // NeoChess: clear king-capture and retaliation state on full game reset.
+    this._kingCaptured = { captured: false, winner: null }
+    this._retaliationPending = { pending: false, pendingWinner: null }
+    this._consecutivePasses = 0
   }
 
   get(square: Square): Piece | undefined {
@@ -1426,12 +1463,68 @@ export class Chess {
       this.isDrawByFiftyMoves() ||
       this.isStalemate() ||
       this.isInsufficientMaterial() ||
-      this.isThreefoldRepetition()
+      this.isThreefoldRepetition() ||
+      this.isPassDraw()
     )
   }
 
   isGameOver(): boolean {
-    return this.isCheckmate() || this.isDraw()
+    // NeoChess: game ends on king capture (after any retaliation is resolved).
+    // During _retaliationPending the game is still live — don't return true yet.
+    return this._kingCaptured.captured || this.isCheckmate() || this.isDraw()
+  }
+
+  /**
+   * NeoChess — returns whether a king has been physically captured and, if so,
+   * which side captured it (i.e. the winner).
+   */
+  isKingCaptured(): { captured: boolean; winner: Color | null } {
+    return { ...this._kingCaptured }
+  }
+
+  /**
+   * NeoChess — returns true when White has just captured Black's king AND at
+   * least one Black piece can reach the White king on the next move. The game
+   * is NOT yet over; Black must make exactly one more move.
+   */
+  isRetaliationPending(): boolean {
+    return this._retaliationPending.pending
+  }
+
+  /**
+   * NeoChess — passes the current turn to the other player (null move).
+   */
+  pass(): boolean {
+    if (this.isGameOver() || this._retaliationPending.pending) {
+      return false
+    }
+
+    const move: InternalMove = {
+      color: this._turn,
+      from: 0,
+      to: 0,
+      piece: 'k',
+      flags: BITS.NULL_MOVE,
+    }
+
+    this._makeMove(move)
+    return true
+  }
+
+  /**
+   * NeoChess — returns true if the game ended in a draw because both players
+   * passed consecutively.
+   */
+  isPassDraw(): boolean {
+    return this._consecutivePasses >= 6
+  }
+
+  /**
+   * NeoChess — returns the winning color if a king has been captured, or null
+   * if the game is still in progress or ended as a draw (both kings captured).
+   */
+  getWinner(): Color | null {
+    return this._kingCaptured.winner
   }
 
   isPromotion({ from, to }: { from: Square; to: Square }): boolean {
@@ -1595,9 +1688,26 @@ export class Chess {
               PAWN,
               this._board[to].type,
               BITS.CAPTURE,
+              this._board[to].color,
             )
           } else if (to === this._epSquare) {
-            addMove(moves, us, from, to, PAWN, PAWN, BITS.EP_CAPTURE)
+            addMove(moves, us, from, to, PAWN, PAWN, BITS.EP_CAPTURE, them)
+          } else if (
+            // NeoChess: pawns may also capture friendly pieces diagonally,
+            // except their own king.
+            this._board[to]?.color === us &&
+            this._board[to].type !== KING
+          ) {
+            addMove(
+              moves,
+              us,
+              from,
+              to,
+              PAWN,
+              this._board[to].type,
+              BITS.CAPTURE,
+              this._board[to].color,
+            )
           }
         }
       } else {
@@ -1614,8 +1724,23 @@ export class Chess {
             if (!this._board[to]) {
               addMove(moves, us, from, to, type)
             } else {
-              // own color, stop loop
-              if (this._board[to].color === us) break
+              if (this._board[to].color === us) {
+                // NeoChess: friendly-fire allowed unless the target is own king.
+                if (this._board[to].type !== KING) {
+                  addMove(
+                    moves,
+                    us,
+                    from,
+                    to,
+                    type,
+                    this._board[to].type,
+                    BITS.CAPTURE,
+                    this._board[to].color,
+                  )
+                }
+                // Either way, cannot continue the ray through a friendly piece.
+                break
+              }
 
               addMove(
                 moves,
@@ -1625,6 +1750,7 @@ export class Chess {
                 type,
                 this._board[to].type,
                 BITS.CAPTURE,
+                this._board[to].color,
               )
               break
             }
@@ -1649,12 +1775,10 @@ export class Chess {
           const castlingFrom = this._kings[us]
           const castlingTo = castlingFrom + 2
 
+          // NeoChess: castling only blocked by empty squares, not by attack.
           if (
             !this._board[castlingFrom + 1] &&
-            !this._board[castlingTo] &&
-            !this._attacked(them, this._kings[us]) &&
-            !this._attacked(them, castlingFrom + 1) &&
-            !this._attacked(them, castlingTo)
+            !this._board[castlingTo]
           ) {
             addMove(
               moves,
@@ -1673,13 +1797,11 @@ export class Chess {
           const castlingFrom = this._kings[us]
           const castlingTo = castlingFrom - 2
 
+          // NeoChess: castling only blocked by empty squares, not by attack.
           if (
             !this._board[castlingFrom - 1] &&
             !this._board[castlingFrom - 2] &&
-            !this._board[castlingFrom - 3] &&
-            !this._attacked(them, this._kings[us]) &&
-            !this._attacked(them, castlingFrom - 1) &&
-            !this._attacked(them, castlingTo)
+            !this._board[castlingFrom - 3]
           ) {
             addMove(
               moves,
@@ -1696,25 +1818,22 @@ export class Chess {
     }
 
     /*
-     * return all pseudo-legal moves (this includes moves that allow the king
-     * to be captured)
+     * NeoChess Rule #1 — King Capture:
+     * All pseudo-legal moves are returned directly. The check filter that would
+     * strip moves leaving the own king in check has been intentionally removed.
+     * Players may freely move into check; the game ends only when a king is
+     * physically captured, not on checkmate detection.
+     *
+     * The `legal` parameter is kept for API compatibility but no longer gates a
+     * legality filter — it merely preserves the short-circuit for positions
+     * where no king index is tracked (e.g. custom positions without kings).
      */
-    if (!legal || this._kings[us] === -1) {
+    if (this._kings[us] === -1 && !legal) {
+      // No king on the board at all — still return whatever moves exist.
       return moves
     }
 
-    // filter out illegal moves
-    const legalMoves = []
-
-    for (let i = 0, len = moves.length; i < len; i++) {
-      this._makeMove(moves[i])
-      if (!this._isKingAttacked(us)) {
-        legalMoves.push(moves[i])
-      }
-      this._undoMove()
-    }
-
-    return legalMoves
+    return moves
   }
 
   move(
@@ -1792,6 +1911,11 @@ export class Chess {
       fenEpSquare: this._fenEpSquare,
       halfMoves: this._halfMoves,
       moveNumber: this._moveNumber,
+      // NeoChess: snapshot both flags so probe _makeMove/_undoMove pairs
+      // (used by _createMove for verbose move generation) don't pollute them.
+      kingCaptured: { ...this._kingCaptured },
+      retaliationPending: { ...this._retaliationPending },
+      consecutivePasses: this._consecutivePasses,
     })
   }
 
@@ -1818,8 +1942,14 @@ export class Chess {
 
       this._epSquare = EMPTY
 
+      // NeoChess: increment consecutive passes
+      this._consecutivePasses++
+
       return
     }
+
+    // NeoChess: reset consecutive passes on any normal move
+    this._consecutivePasses = 0
 
     this._hash ^= this._epKey()
     this._hash ^= this._castlingKey()
@@ -1937,6 +2067,63 @@ export class Chess {
 
     this._turn = them
     this._hash ^= SIDE_KEY
+
+    // NeoChess Rule #1 — retaliation state-machine.
+    //
+    // Phase A (retaliationPending = true): the losing side is making their
+    // one allowed retaliation move. Resolve the outcome now.
+    if (this._retaliationPending.pending) {
+      // Scan for the White king — did Black's move just capture it?
+      let whiteKingFound = false
+      for (let i = Ox88.a8; i <= Ox88.h1; i++) {
+        if (i & 0x88) { i += 7; continue }
+        const p = this._board[i]
+        if (p && p.type === KING && p.color === WHITE) { whiteKingFound = true; break }
+      }
+      if (!whiteKingFound) {
+        // Black captured the White king → draw (both kings gone).
+        this._kingCaptured = { captured: true, winner: null }
+      } else {
+        // Black did not take the White king → White wins.
+        this._kingCaptured = {
+          captured: true,
+          winner: this._retaliationPending.pendingWinner,
+        }
+      }
+      this._retaliationPending = { pending: false, pendingWinner: null }
+      return
+    }
+
+    // Phase B (normal move): scan for missing kings.
+    if (!this._kingCaptured.captured) {
+      let whiteKingFound = false
+      let blackKingFound = false
+      for (let i = Ox88.a8; i <= Ox88.h1; i++) {
+        if (i & 0x88) { i += 7; continue }
+        const p = this._board[i]
+        if (!p) continue
+        if (p.type === KING && p.color === WHITE) whiteKingFound = true
+        if (p.type === KING && p.color === BLACK) blackKingFound = true
+        if (whiteKingFound && blackKingFound) break
+      }
+
+      if (!whiteKingFound) {
+        // Black captured the White king → immediate Black win, no retaliation.
+        this._kingCaptured = { captured: true, winner: BLACK }
+      } else if (!blackKingFound) {
+        // White captured the Black king → check whether Black can retaliate.
+        // _kings[WHITE] is kept current by _makeMove when the king moves, so
+        // it is safe to use here for the attack check.
+        const whiteKingIdx = this._kings[WHITE]
+        if (whiteKingIdx !== EMPTY && this._attacked(BLACK, whiteKingIdx)) {
+          // At least one Black piece can reach the White king → retaliation window.
+          this._retaliationPending = { pending: true, pendingWinner: WHITE }
+        } else {
+          // No Black piece threatens the White king → White wins immediately.
+          this._kingCaptured = { captured: true, winner: WHITE }
+        }
+      }
+    }
   }
 
   undo(): Move | null {
@@ -1968,6 +2155,10 @@ export class Chess {
     this._fenEpSquare = old.fenEpSquare
     this._halfMoves = old.halfMoves
     this._moveNumber = old.moveNumber
+    // NeoChess: restore both NeoChess flags so probes don't corrupt them.
+    this._kingCaptured = old.kingCaptured
+    this._retaliationPending = old.retaliationPending
+    this._consecutivePasses = old.consecutivePasses
 
     this._hash ^= this._epKey()
     this._hash ^= this._castlingKey()
@@ -2000,7 +2191,8 @@ export class Chess {
         this._set(index, { type: PAWN, color: them })
       } else {
         // regular capture
-        this._set(move.to, { type: move.captured, color: them })
+        const capColor = move.capturedColor || them
+        this._set(move.to, { type: move.captured, color: capColor })
       }
     }
 

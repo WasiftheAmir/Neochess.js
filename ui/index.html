@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeoChess — Test UI</title>
+  <meta name="description"
+    content="A standalone test UI for NeoChess.js — play chess in the browser with move validation powered by chess.js." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap"
+    rel="stylesheet" />
+  <style>
+    /* ================================================================
+         Design Tokens — ALL color values live here and ONLY here.
+         Every color reference elsewhere uses var(--token-name).
+      ================================================================ */
+    :root {
+      --bg-base: #0e0f11;
+      --bg-panel: #1a1c20;
+      --bg-surface: #22252b;
+      --accent: #38bdf8;
+      --accent-dim: #0ea5e9;
+      --accent-glow: rgba(56, 189, 248, 0.15);
+      --text-primary: #f0f4f8;
+      --text-muted: #6b7280;
+      --border: #2d3139;
+      --sq-light: #4a5060;
+      --sq-dark: #2a2d33;
+      --sq-selected: rgba(56, 189, 248, 0.30);
+      --sq-legal: rgba(56, 189, 248, 0.15);
+      --sq-lastmove: rgb(65, 140, 173);
+      --piece-white: #f0f4f8;
+      --piece-black: #111317;
+
+      /* Square size: scales down on narrow viewports */
+      --sq: min(64px, 9vw);
+    }
+
+    /* ================================================================
+         Reset / Base
+      ================================================================ */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    /* ================================================================
+         App Shell
+      ================================================================ */
+    #app {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 24px;
+    }
+
+    /* ================================================================
+         Board Area (rank labels + board column)
+      ================================================================ */
+    #board-area {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    /* Left column: rank labels */
+    #rank-labels {
+      display: flex;
+      flex-direction: column;
+      height: calc(8 * var(--sq));
+    }
+
+    /* Right column: board + file labels */
+    #board-col {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* ================================================================
+         Coordinate Labels
+      ================================================================ */
+    .coord-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      user-select: none;
+      line-height: 1;
+    }
+
+    #rank-labels .coord-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: var(--sq);
+      width: 16px;
+    }
+
+    #file-labels {
+      display: flex;
+      flex-direction: row;
+    }
+
+    #file-labels .coord-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--sq);
+    }
+
+    /* ================================================================
+         Chess Board Grid
+      ================================================================ */
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, var(--sq));
+      grid-template-rows: repeat(8, var(--sq));
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.6),
+        0 0 0 1px var(--border);
+    }
+
+    /* ================================================================
+         Squares
+      ================================================================ */
+    .square {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--sq);
+      height: var(--sq);
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.08s ease;
+    }
+
+    .square.light {
+      background-color: var(--sq-light);
+    }
+
+    .square.dark {
+      background-color: var(--sq-dark);
+    }
+
+    /* Overlays stack on top of the base color */
+    .square.last-move {
+      background-color: var(--sq-lastmove);
+    }
+
+    .square.selected {
+      background-color: var(--sq-selected);
+    }
+
+    /* ================================================================
+         Legal-Move Dot Overlay
+      ================================================================ */
+    .legal-dot {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    /* Centered dot on empty squares */
+    .legal-dot::after {
+      content: '';
+      display: block;
+      width: 30%;
+      height: 30%;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.55;
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    /* Ring on squares occupied by a capturable piece */
+    .square.has-piece .legal-dot::after {
+      width: 88%;
+      height: 88%;
+      background: transparent;
+      border: 3px solid var(--accent);
+      opacity: 0.5;
+      box-shadow: none;
+    }
+
+    /* ================================================================
+         Pieces
+      ================================================================ */
+    .piece {
+      font-size: calc(var(--sq) * 0.80);
+      line-height: 1;
+      pointer-events: none;
+      position: relative;
+      z-index: 1;
+      transition: transform 0.05s ease;
+    }
+
+    .piece.white {
+      color: var(--piece-white);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    }
+
+    .piece.black {
+      color: var(--piece-black);
+      text-shadow: 0 1px 2px rgba(255, 255, 255, 0.15);
+    }
+
+    .square:active .piece {
+      transform: scale(0.92);
+    }
+
+    /* ================================================================
+         Right Sidebar
+      ================================================================ */
+    #sidebar {
+      width: 260px;
+      min-height: calc(8 * var(--sq));
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-left: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    /* ─── Turn Indicator ─────────────────────────────────────────── */
+    #turn-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #turn-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+      transition: background 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    #turn-dot.black-turn {
+      background: var(--text-muted);
+      box-shadow: none;
+    }
+
+    #turn-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* ─── Status Line ────────────────────────────────────────────── */
+    #status-line {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-muted);
+      letter-spacing: 0.02em;
+      transition: color 0.2s ease;
+      min-height: 16px;
+    }
+
+    #status-line.alert {
+      color: var(--accent);
+    }
+
+    /* ─── Move History ───────────────────────────────────────────── */
+    #history-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    #history {
+      background: var(--bg-surface);
+      border-radius: 6px;
+      padding: 8px;
+      flex: 1;
+      overflow-y: auto;
+      min-height: 120px;
+      max-height: 320px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    #history::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #history::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #history::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .history-row {
+      display: flex;
+      gap: 6px;
+      padding: 2px 0;
+      border-radius: 3px;
+    }
+
+    /* Highlight the most recent pair of moves */
+    .history-row:last-child {
+      background: var(--accent-glow);
+      padding-left: 4px;
+    }
+
+    .history-num {
+      color: var(--text-muted);
+      min-width: 28px;
+    }
+
+    .history-white {
+      min-width: 52px;
+    }
+
+    .history-black {
+      color: var(--text-muted);
+    }
+
+    #history-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      padding: 4px;
+    }
+
+    /* ─── Sidebar Buttons ────────────────────────────────────────── */
+    #reset-btn,
+    #pass-btn {
+      width: 100%;
+      padding: 9px 0;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      transition:
+        border-color 0.2s ease,
+        color 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+
+    #reset-btn:hover,
+    #pass-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    #reset-btn:active,
+    #pass-btn:active {
+      opacity: 0.75;
+    }
+
+    #reset-btn:disabled,
+    #pass-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+      border-color: var(--border);
+      color: var(--text-muted);
+      box-shadow: none;
+    }
+
+    /* ================================================================
+         Responsive — stack vertically on narrow viewports
+      ================================================================ */
+    @media (max-width: 660px) {
+      #app {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      #sidebar {
+        width: 100%;
+        max-width: calc(8 * var(--sq) + 22px);
+        min-height: unset;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <!-- ── Board area ─────────────────────────────────────────────── -->
+    <div id="board-area">
+      <!-- Rank labels (8 → 1) -->
+      <div id="rank-labels"></div>
+
+      <!-- Board grid + file labels (a → h) -->
+      <div id="board-col">
+        <div id="board"></div>
+        <div id="file-labels"></div>
+      </div>
+    </div>
+
+    <!-- ── Right Sidebar ──────────────────────────────────────────── -->
+    <div id="sidebar">
+      <!-- Turn indicator -->
+      <div id="turn-row">
+        <div id="turn-dot"></div>
+        <span id="turn-text">White to move</span>
+      </div>
+
+      <!-- Game status -->
+      <div id="status-line">In progress</div>
+
+      <!-- Move history -->
+      <span id="history-label">Move History</span>
+      <div id="history">
+        <span id="history-empty">No moves yet.</span>
+      </div>
+
+      <!-- Pass Turn button -->
+      <button id="pass-btn" type="button">&#10140; Pass Turn</button>
+
+      <!-- Reset button -->
+      <button id="reset-btn" type="button">&#8635; Reset Game</button>
+    </div>
+  </div>
+
+  <!-- ================================================================
+         Game Logic — chess.js is imported from the built ESM bundle.
+         All JS is inline; no build step required.
+    ================================================================ -->
+  <script type="module">
+    import { Chess } from '../dist/esm/chess.js';
+
+    // ─── State ───────────────────────────────────────────────────────
+    const chess = new Chess();
+    let selectedSq = null;  // algebraic square string, e.g. "e2", or null
+    let legalTargets = [];   // array of algebraic square strings
+    let lastMove = null;  // { from, to } or null
+
+    // ─── Unicode piece glyphs ─────────────────────────────────────────
+    const GLYPHS = {
+      wK: '\u2654', wQ: '\u2655', wR: '\u2656', wB: '\u2657', wN: '\u2658', wP: '\u2659',
+      bK: '\u265A', bQ: '\u265B', bR: '\u265C', bB: '\u265D', bN: '\u265E', bP: '\u265F',
+    };
+
+    function pieceGlyph(piece) {
+      const key = `${piece.color}${piece.type.toUpperCase()}`;
+      return GLYPHS[key] ?? '';
+    }
+
+    // ─── DOM helpers ──────────────────────────────────────────────────
+    const $ = (id) => document.getElementById(id);
+
+    // ─── Board render ─────────────────────────────────────────────────
+    function renderBoard() {
+      const boardEl = $('board');
+      boardEl.innerHTML = '';
+
+      // Ranks 8 → 1, files a → h
+      for (let rank = 7; rank >= 0; rank--) {
+        for (let file = 0; file < 8; file++) {
+          const sq = String.fromCharCode(97 + file) + (rank + 1);
+          const isLight = (rank + file) % 2 !== 0;
+          const piece = chess.get(sq);
+
+          const div = document.createElement('div');
+          div.className = `square ${isLight ? 'light' : 'dark'}`;
+          div.dataset.sq = sq;
+
+          // Layer: last-move tint (rendered before selected so selected wins)
+          if (lastMove && (sq === lastMove.from || sq === lastMove.to)) {
+            div.classList.add('last-move');
+          }
+
+          // Layer: selected square
+          if (sq === selectedSq) {
+            div.classList.add('selected');
+          }
+
+          // Legal-move dot / ring overlay
+          if (legalTargets.includes(sq)) {
+            const dot = document.createElement('div');
+            dot.className = 'legal-dot';
+            div.appendChild(dot);
+
+            // Ring style when there's a capturable piece on the target
+            if (piece) {
+              div.classList.add('has-piece');
+            }
+          }
+
+          // Piece glyph
+          if (piece) {
+            const span = document.createElement('span');
+            span.className = `piece ${piece.color === 'w' ? 'white' : 'black'}`;
+            span.textContent = pieceGlyph(piece);
+            div.appendChild(span);
+          }
+
+          div.addEventListener('click', () => handleSquareClick(sq));
+          boardEl.appendChild(div);
+        }
+      }
+
+      renderCoords();
+      renderSidebar();
+    }
+
+    // ─── Coordinate labels ────────────────────────────────────────────
+    function renderCoords() {
+      const rankEl = $('rank-labels');
+      const fileEl = $('file-labels');
+      rankEl.innerHTML = '';
+      fileEl.innerHTML = '';
+
+      for (let r = 8; r >= 1; r--) {
+        const span = document.createElement('span');
+        span.className = 'coord-label';
+        span.textContent = r;
+        rankEl.appendChild(span);
+      }
+
+      for (let f = 0; f < 8; f++) {
+        const span = document.createElement('span');
+        span.className = 'coord-label';
+        span.textContent = String.fromCharCode(97 + f);
+        fileEl.appendChild(span);
+      }
+    }
+
+    // ─── Sidebar render ───────────────────────────────────────────────
+    function renderSidebar() {
+      const turnDot = $('turn-dot');
+      const turnText = $('turn-text');
+      const statusEl = $('status-line');
+      const historyEl = $('history');
+
+      // Turn indicator
+      const whiteTurn = chess.turn() === 'w';
+      turnDot.className = whiteTurn ? '' : 'black-turn';
+      // Re-apply the id (class-only, not replaced)
+      turnDot.id = 'turn-dot';
+      turnText.textContent = whiteTurn ? 'White to move' : 'Black to move';
+
+      // Game status — NeoChess Rule #1: king capture + retaliation mechanic.
+      let statusText = 'In progress';
+      let isAlert = false;
+
+      const kingResult = chess.isKingCaptured();
+      const retaliating = chess.isRetaliationPending();
+
+      if (retaliating) {
+        // White captured Black's king; Black has one move to take White's king.
+        statusText = 'Retaliation available \u2014 Black to move';
+        isAlert = true;
+      } else if (chess.isPassDraw()) {
+        statusText = 'Draw \u2014 both players passed';
+      } else if (kingResult.captured) {
+        if (kingResult.winner === null) {
+          statusText = 'Draw \u2014 both kings captured!';
+        } else {
+          const winnerName = kingResult.winner === 'w' ? 'White' : 'Black';
+          statusText = `${winnerName} wins!`;
+        }
+        isAlert = true;
+      } else if (chess.isStalemate()) {
+        statusText = 'Stalemate \u2014 Draw';
+      } else if (chess.isDraw()) {
+        statusText = 'Draw';
+      }
+
+      statusEl.textContent = statusText;
+      statusEl.className = isAlert ? 'alert' : '';
+
+      // Disable/enable pass button appropriately
+      const passBtn = $('pass-btn');
+      if (passBtn) {
+        passBtn.disabled = retaliating || chess.isGameOver();
+      }
+
+      // Move history (paired as "1. e4 e5")
+      const history = chess.history();
+      historyEl.innerHTML = '';
+
+      if (history.length === 0) {
+        const empty = document.createElement('span');
+        empty.id = 'history-empty';
+        empty.textContent = 'No moves yet.';
+        historyEl.appendChild(empty);
+      } else {
+        for (let i = 0; i < history.length; i += 2) {
+          const row = document.createElement('div');
+          row.className = 'history-row';
+
+          const numSpan = document.createElement('span');
+          numSpan.className = 'history-num';
+          numSpan.textContent = `${Math.floor(i / 2) + 1}.`;
+
+          const whiteSpan = document.createElement('span');
+          whiteSpan.className = 'history-white';
+          whiteSpan.textContent = history[i];
+
+          row.appendChild(numSpan);
+          row.appendChild(whiteSpan);
+
+          if (history[i + 1] !== undefined) {
+            const blackSpan = document.createElement('span');
+            blackSpan.className = 'history-black';
+            blackSpan.textContent = history[i + 1];
+            row.appendChild(blackSpan);
+          }
+
+          historyEl.appendChild(row);
+        }
+        // Newest move always visible
+        historyEl.scrollTop = historyEl.scrollHeight;
+      }
+    }
+
+    // ─── Click-to-move handler ────────────────────────────────────────
+    function handleSquareClick(sq) {
+      // Ignore clicks when game is over
+      if (chess.isGameOver()) return;
+
+      // Clicking a legal target → execute the move
+      if (selectedSq && legalTargets.includes(sq)) {
+        const piece = chess.get(selectedSq);
+        const opts = { from: selectedSq, to: sq };
+
+        // Auto-promote pawns to queen
+        if (
+          piece &&
+          piece.type === 'p' &&
+          ((piece.color === 'w' && sq[1] === '8') ||
+            (piece.color === 'b' && sq[1] === '1'))
+        ) {
+          opts.promotion = 'q';
+        }
+
+        const result = chess.move(opts);
+        if (result) {
+          lastMove = { from: result.from, to: result.to };
+        }
+        selectedSq = null;
+        legalTargets = [];
+        renderBoard();
+        return;
+      }
+
+      // Clicking a piece of the current side → select it and show legal targets
+      const piece = chess.get(sq);
+      const currentTurn = chess.turn();
+
+      if (piece && piece.color === currentTurn) {
+        selectedSq = sq;
+        legalTargets = chess.moves({ square: sq, verbose: true }).map((m) => m.to);
+        renderBoard();
+        return;
+      }
+
+      // Clicking elsewhere → deselect
+      selectedSq = null;
+      legalTargets = [];
+      renderBoard();
+    }
+
+    // ─── Pass ────────────────────────────────────────────────────────
+    $('pass-btn').addEventListener('click', () => {
+      if (chess.pass()) {
+        selectedSq = null;
+        legalTargets = [];
+        renderBoard();
+      }
+    });
+
+    // ─── Reset ───────────────────────────────────────────────────────
+    $('reset-btn').addEventListener('click', () => {
+      chess.reset();
+      selectedSq = null;
+      legalTargets = [];
+      lastMove = null;
+      renderBoard();
+    });
+
+    // ─── Initial render ───────────────────────────────────────────────
+    renderBoard();
+  </script>
+</body>
+
+</html>
