@@ -254,13 +254,19 @@
       flex-direction: row;
       align-items: flex-start;
       gap: 24px;
-      background: rgba(10, 10, 10, 0.4);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 12px;
       padding: 32px;
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+    }
+
+    .liquid-glass-supported .glass-container {
+      background: rgba(0, 0, 0, 0.12);
+      backdrop-filter: url(#liquid-glass-filter);
+      -webkit-backdrop-filter: url(#liquid-glass-filter);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 12px 40px rgba(0, 0, 0, 0.8);
     }
 
     /* ================================================================
@@ -477,16 +483,22 @@
     #sidebar {
       width: calc(3.5 * var(--sq));
       min-height: calc(8 * var(--sq));
-      background: var(--bg-panel);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 8px;
       display: flex;
       flex-direction: column;
       gap: 16px;
       padding: 16px;
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+    }
+
+    .liquid-glass-supported #sidebar {
+      background: rgba(0, 0, 0, 0.12);
+      backdrop-filter: url(#liquid-glass-filter);
+      -webkit-backdrop-filter: url(#liquid-glass-filter);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 12px 40px rgba(0, 0, 0, 0.8);
     }
 
     /* ─── Player Label ───────────────────────────────────────────── */
