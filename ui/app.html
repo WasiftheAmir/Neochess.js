@@ -55,6 +55,11 @@
       color: var(--text-primary);
       font-family: 'Inter', system-ui, sans-serif;
       -webkit-font-smoothing: antialiased;
+      transition: background 0.8s ease-in-out;
+    }
+
+    body.game-active {
+      background-image: url('../Website_Back_Drop_1.png');
     }
 
     body {
@@ -2020,6 +2025,7 @@
       // Hide lobby, show game
       $('lobby').classList.add('hidden');
       $('game-view').classList.add('active');
+      document.body.classList.add('game-active');
 
       renderBoard();
     });
@@ -2199,6 +2205,7 @@
 
       $('game-view').classList.remove('active');
       $('lobby').classList.remove('hidden');
+      document.body.classList.remove('game-active');
       $('lobby-default-buttons').style.display = 'flex';
       $('lobby-join-buttons').style.display = 'none';
       document.querySelector('#lobby .subtitle').textContent = 'A new kind of chess';
@@ -2237,6 +2244,7 @@
       gameRematchRequestedBy = null;
 
       $('game-view').classList.add('active');
+      document.body.classList.add('game-active');
       renderBoard();
 
       // Begin listening for opponent moves
