@@ -487,10 +487,29 @@
         min-height: unset;
       }
     }
+
+    /* Liquid glass enhancement for Chromium only.
+       Safari and Firefox currently don't support SVG filters via backdrop-filter,
+       so the feature gracefully degrades. This is expected/intentional, not a bug. */
+    .liquid-glass-enabled .glass-container {
+      backdrop-filter: url(#liquid-glass-filter) blur(16px);
+      -webkit-backdrop-filter: url(#liquid-glass-filter) blur(16px);
+    }
   </style>
 </head>
 
 <body>
+  <!-- Hidden SVG for Liquid Glass Filter -->
+  <svg style="position: absolute; width: 0; height: 0; pointer-events: none;" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="liquid-glass-filter">
+        <!-- Subtly displace the backdrop -->
+        <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </defs>
+  </svg>
+
   <div class="background-overlay"></div>
   <div id="app">
     <div class="glass-container">
@@ -908,6 +927,59 @@
 
     // ─── Initial render ───────────────────────────────────────────────
     renderBoard();
+
+    // Reliable detection of Chromium and SVG filter backdrop-filter support
+    function detectLiquidGlass() {
+      try {
+        // Trivial SVG filter for testing
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('style', 'position: absolute; width: 0; height: 0; pointer-events: none;');
+        svg.innerHTML = `
+          <defs>
+            <filter id="test-filter">
+              <feGaussianBlur stdDeviation="1" />
+            </filter>
+          </defs>
+        `;
+        document.body.appendChild(svg);
+
+        const testEl = document.createElement('div');
+        testEl.style.position = 'absolute';
+        testEl.style.width = '1px';
+        testEl.style.height = '1px';
+        testEl.style.opacity = '0';
+        testEl.style.pointerEvents = 'none';
+        testEl.style.backdropFilter = 'url(#test-filter)';
+        testEl.style.webkitBackdropFilter = 'url(#test-filter)';
+        document.body.appendChild(testEl);
+
+        const supportsSvgFilter = typeof CSS !== 'undefined' && 
+                                  typeof CSS.supports === 'function' && 
+                                  (CSS.supports('backdrop-filter', 'url(#test-filter)') || 
+                                   CSS.supports('-webkit-backdrop-filter', 'url(#test-filter)'));
+
+        // Cleanup
+        document.body.removeChild(testEl);
+        document.body.removeChild(svg);
+
+        // Chromium user agent detection as secondary signal
+        const ua = navigator.userAgent.toLowerCase();
+        const isChromium = (ua.indexOf('chrome') > -1 || ua.indexOf('chromium') > -1) && 
+                           (ua.indexOf('safari') > -1) && 
+                           (ua.indexOf('firefox') === -1) && 
+                           (ua.indexOf('version/') === -1); // Exclude Safari (which has 'version/XX')
+
+        // Note: Safari and Firefox currently don't support SVG filters via backdrop-filter, 
+        // so the feature gracefully degrades. This is expected/intentional, not a bug.
+        return supportsSvgFilter && isChromium;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    if (detectLiquidGlass()) {
+      document.documentElement.classList.add('liquid-glass-enabled');
+    }
   </script>
 </body>
 
