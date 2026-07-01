@@ -401,9 +401,17 @@
       width: 30%;
       height: 30%;
       border-radius: 50%;
-      background: var(--accent);
       opacity: 0.55;
-      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    .square.dark .legal-dot::after {
+      background: #ffffff;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    }
+
+    .square.light .legal-dot::after {
+      background: #000000;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
     }
 
     /* Ring on squares occupied by a capturable piece */
@@ -411,9 +419,16 @@
       width: 88%;
       height: 88%;
       background: transparent;
-      border: 3px solid var(--accent);
       opacity: 0.5;
       box-shadow: none;
+    }
+
+    .square.dark.has-piece .legal-dot::after {
+      border: 3px solid #ffffff;
+    }
+
+    .square.light.has-piece .legal-dot::after {
+      border: 3px solid #000000;
     }
 
     /* ================================================================
