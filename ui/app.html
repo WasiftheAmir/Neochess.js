@@ -1,0 +1,2442 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeoChess — Play</title>
+  <meta name="description" content="NeoChess — enter your username and play against Stockfish AI." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap"
+    rel="stylesheet" />
+  <style>
+    /* ================================================================
+         Design Tokens — Matches index.html exactly
+       ================================================================ */
+    :root {
+      --bg-base: #0e0f11;
+      --bg-panel: #1a1c20;
+      --bg-surface: #22252b;
+      --accent: #38bdf8;
+      --accent-dim: #0ea5e9;
+      --accent-glow: rgba(56, 189, 248, 0.15);
+      --text-primary: #f0f4f8;
+      --text-muted: #6b7280;
+      --border: #2d3139;
+      --sq-light: #4a5060;
+      --sq-dark: #2a2d33;
+      --sq-selected: rgba(56, 189, 248, 0.30);
+      --sq-legal: rgba(56, 189, 248, 0.15);
+      --sq-lastmove: rgb(65, 140, 173);
+      --piece-white: #f0f4f8;
+      --piece-black: #111317;
+
+      /* Square size: scales to fill up ~80% of viewport height/width */
+      --sq: min(92px, 9.2vh, 6.2vw);
+    }
+
+    /* ================================================================
+         Reset / Base
+       ================================================================ */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--bg-base) url('../Website_Back_Drop.png') no-repeat center center / cover;
+      color: var(--text-primary);
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .background-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: -1;
+    }
+
+    /* ================================================================
+         Lobby Card
+       ================================================================ */
+    .lobby-card {
+      width: 100%;
+      max-width: 400px;
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 40px 32px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .lobby-card.hidden,
+    .hidden {
+      display: none !important;
+    }
+
+    /* Waiting Pulse Dot */
+    .waiting-pulse {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent);
+      animation: pulse-dot 1.2s ease-in-out infinite;
+    }
+
+    .brand {
+      text-align: center;
+    }
+
+    .title {
+      font-size: 38px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      text-shadow: 0 0 16px var(--accent-glow);
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+    }
+
+    /* ================================================================
+         Form Inputs
+       ================================================================ */
+    .form-group {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .input-field::placeholder {
+      color: var(--text-muted);
+    }
+
+    .input-field:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .lobby-error {
+      font-size: 12px;
+      color: #f87171;
+      min-height: 16px;
+    }
+
+    /* ================================================================
+         Lobby Buttons
+       ================================================================ */
+    .button-group {
+      width: 100%;
+      display: flex;
+      gap: 16px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px 0;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+      text-align: center;
+    }
+
+    /* Play vs AI Button (Accent Primary) */
+    .btn-primary {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-glow);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .btn-primary:active {
+      opacity: 0.75;
+    }
+
+    /* Play a Friend Button (Muted Secondary) */
+    .btn-secondary {
+      color: var(--text-muted);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .btn-secondary:active {
+      opacity: 0.75;
+    }
+
+    /* ================================================================
+         Game View — Board + Sidebar (reused from index.html)
+       ================================================================ */
+    #game-view {
+      display: none;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+    }
+
+    #game-view.active {
+      display: flex;
+    }
+
+    .glass-container {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 24px;
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    }
+
+    /* ================================================================
+         Board Area (rank labels + board column)
+       ================================================================ */
+    #board-area {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    /* Left column: rank labels */
+    #rank-labels {
+      display: flex;
+      flex-direction: column;
+      height: calc(8 * var(--sq));
+    }
+
+    /* Right column: board + file labels */
+    #board-col {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* ================================================================
+         Coordinate Labels
+       ================================================================ */
+    .coord-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      user-select: none;
+      line-height: 1;
+    }
+
+    #rank-labels .coord-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: var(--sq);
+      width: 16px;
+    }
+
+    #file-labels {
+      display: flex;
+      flex-direction: row;
+    }
+
+    #file-labels .coord-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--sq);
+    }
+
+    /* ================================================================
+         Chess Board Grid
+       ================================================================ */
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, var(--sq));
+      grid-template-rows: repeat(8, var(--sq));
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.6),
+        0 0 0 1px var(--border);
+    }
+
+    /* ================================================================
+         Squares
+       ================================================================ */
+    .square {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--sq);
+      height: var(--sq);
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.08s ease;
+    }
+
+    .square.light {
+      background-color: var(--sq-light);
+    }
+
+    .square.dark {
+      background-color: var(--sq-dark);
+    }
+
+    /* Overlays stack on top of the base color */
+    .square.last-move {
+      background-color: var(--sq-lastmove);
+    }
+
+    .square.selected {
+      background-color: var(--sq-selected);
+    }
+
+    /* Pending self-capture: pulsing amber border — awaiting second click */
+    .square.self-capture-pending {
+      box-shadow: inset 0 0 0 3px rgba(251, 191, 36, 0.85);
+      animation: self-capture-pulse 0.8s ease-in-out infinite alternate;
+    }
+
+    @keyframes self-capture-pulse {
+      from {
+        box-shadow: inset 0 0 0 3px rgba(251, 191, 36, 0.5);
+      }
+
+      to {
+        box-shadow: inset 0 0 0 3px rgba(251, 191, 36, 1);
+      }
+    }
+
+    /* Drag-over drop target highlight */
+    .square.drag-over {
+      background-color: var(--sq-selected);
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    /* Piece being dragged — ghost stays, cursor shows drag */
+    .piece.dragging {
+      opacity: 0.35;
+    }
+
+    /* ================================================================
+         Legal-Move Dot Overlay
+       ================================================================ */
+    .legal-dot {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    /* Centered dot on empty squares */
+    .legal-dot::after {
+      content: '';
+      display: block;
+      width: 30%;
+      height: 30%;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.55;
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    /* Ring on squares occupied by a capturable piece */
+    .square.has-piece .legal-dot::after {
+      width: 88%;
+      height: 88%;
+      background: transparent;
+      border: 3px solid var(--accent);
+      opacity: 0.5;
+      box-shadow: none;
+    }
+
+    /* ================================================================
+         Pieces
+       ================================================================ */
+    .piece {
+      font-size: calc(var(--sq) * 0.80);
+      line-height: 1;
+      pointer-events: none;
+      position: relative;
+      z-index: 1;
+      transition: transform 0.05s ease;
+    }
+
+    /* Draggable pieces need pointer events to trigger dragstart */
+    .piece[draggable="true"] {
+      pointer-events: auto;
+      cursor: grab;
+    }
+
+    .piece[draggable="true"]:active {
+      cursor: grabbing;
+    }
+
+    .piece.white {
+      color: var(--piece-white);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    }
+
+    .piece.black {
+      color: var(--piece-black);
+      text-shadow: 0 1px 2px rgba(255, 255, 255, 0.15);
+    }
+
+    .square:active .piece {
+      transform: scale(0.92);
+    }
+
+    /* ================================================================
+         Right Sidebar
+       ================================================================ */
+    #sidebar {
+      width: calc(3.5 * var(--sq));
+      min-height: calc(8 * var(--sq));
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-left: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    /* ─── Player Label ───────────────────────────────────────────── */
+    #player-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ─── Turn Indicator ─────────────────────────────────────────── */
+    #turn-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #turn-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+      transition: background 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    #turn-dot.black-turn {
+      background: var(--text-muted);
+      box-shadow: none;
+    }
+
+    #turn-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* ─── Status Line ────────────────────────────────────────────── */
+    #status-line {
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-muted);
+      letter-spacing: 0.02em;
+      transition: color 0.2s ease;
+      min-height: 16px;
+    }
+
+    #status-line.alert {
+      color: var(--accent);
+    }
+
+    /* ─── Move History ───────────────────────────────────────────── */
+    #history-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    #history {
+      background: var(--bg-surface);
+      border-radius: 6px;
+      padding: 8px;
+      flex: 1;
+      overflow-y: auto;
+      min-height: 120px;
+      max-height: calc(4.5 * var(--sq));
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    #history::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #history::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #history::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .history-row {
+      display: flex;
+      gap: 6px;
+      padding: 2px 0;
+      border-radius: 3px;
+    }
+
+    /* Highlight the most recent pair of moves */
+    .history-row:last-child {
+      background: var(--accent-glow);
+      padding-left: 4px;
+    }
+
+    .history-num {
+      color: var(--text-muted);
+      min-width: 28px;
+    }
+
+    .history-white {
+      min-width: 52px;
+    }
+
+    .history-black {
+      color: var(--text-muted);
+    }
+
+    #history-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      padding: 4px;
+    }
+
+    /* ─── Sidebar Buttons ────────────────────────────────────────── */
+    #pass-btn,
+    #resign-btn,
+    #offer-draw-btn,
+    #accept-draw-btn,
+    #decline-draw-btn,
+    #request-rematch-btn,
+    #accept-rematch-btn,
+    #decline-rematch-btn {
+      width: 100%;
+      padding: 9px 0;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      transition:
+        border-color 0.2s ease,
+        color 0.2s ease,
+        box-shadow 0.2s ease;
+    }
+
+    #pass-btn:hover,
+    #offer-draw-btn:hover,
+    #accept-draw-btn:hover,
+    #decline-draw-btn:hover,
+    #request-rematch-btn:hover,
+    #accept-rematch-btn:hover,
+    #decline-rematch-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    #resign-btn:hover {
+      border-color: #f87171;
+      color: #f87171;
+      box-shadow: 0 0 12px rgba(248, 113, 113, 0.4);
+    }
+
+    #pass-btn:active,
+    #resign-btn:active,
+    #offer-draw-btn:active,
+    #accept-draw-btn:active,
+    #decline-draw-btn:active,
+    #request-rematch-btn:active,
+    #accept-rematch-btn:active,
+    #decline-rematch-btn:active {
+      opacity: 0.75;
+    }
+
+    #pass-btn:disabled,
+    #resign-btn:disabled,
+    #offer-draw-btn:disabled,
+    #accept-draw-btn:disabled,
+    #decline-draw-btn:disabled,
+    #request-rematch-btn:disabled,
+    #accept-rematch-btn:disabled,
+    #decline-rematch-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      pointer-events: none;
+      border-color: var(--border);
+      color: var(--text-muted);
+      box-shadow: none;
+    }
+
+    /* ================================================================
+         Thinking Inline Status Style
+       ================================================================ */
+    #status-line.thinking {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #status-line.thinking::after {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--accent);
+      animation: pulse-dot 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 0.3;
+        transform: scale(0.8);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1.2);
+      }
+    }
+
+    /* ================================================================
+         Responsive — stack vertically on narrow viewports
+       ================================================================ */
+    @media (max-width: 660px) {
+      .glass-container {
+        flex-direction: column;
+        align-items: center;
+        padding: 16px;
+      }
+
+      #sidebar {
+        width: 100%;
+        max-width: calc(8 * var(--sq) + 22px);
+        min-height: unset;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="background-overlay"></div>
+
+  <!-- ============================================================
+       Lobby Screen
+       ============================================================ -->
+  <div id="lobby" class="lobby-card">
+    <div class="brand">
+      <h1 class="title">NeoChess</h1>
+      <p class="subtitle">A new kind of chess</p>
+    </div>
+
+    <div class="form-group">
+      <input id="username-input" type="text" class="input-field" placeholder="Enter a username" autocomplete="off"
+        spellcheck="false" />
+      <span id="lobby-error" class="lobby-error"></span>
+    </div>
+
+    <div id="lobby-default-buttons" class="button-group">
+      <button id="play-ai-btn" class="btn btn-primary" type="button">Play vs AI</button>
+      <button id="play-friend-btn" class="btn btn-secondary" type="button">Play a Friend</button>
+    </div>
+    <div id="lobby-join-buttons" class="button-group" style="display: none; width: 100%;">
+      <button id="join-game-btn" class="btn btn-primary" style="width: 100%;" type="button">Join Game</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       Play a Friend — Time Control Selection Card
+       ============================================================ -->
+  <div id="friend-time-control" class="lobby-card hidden">
+    <div class="brand">
+      <h1 class="title">NeoChess</h1>
+      <p class="subtitle">Play a Friend</p>
+    </div>
+
+    <div class="form-group">
+      <label for="time-preset-select"
+        style="font-size: 11px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em;">Preset
+        Time Control</label>
+      <select id="time-preset-select" class="input-field"
+        style="background: var(--bg-surface); cursor: pointer; color: var(--text-primary);">
+        <option value="1">1 min</option>
+        <option value="3" selected>3 min</option>
+        <option value="3+2">3 min + 2 sec</option>
+        <option value="10">10 min</option>
+        <option value="15+10">15 min + 10 sec</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="color-preset-select"
+        style="font-size: 11px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em;">Color</label>
+      <select id="color-preset-select" class="input-field"
+        style="background: var(--bg-surface); cursor: pointer; color: var(--text-primary);">
+        <option value="random" selected>Random</option>
+        <option value="white">Play as White</option>
+        <option value="black">Play as Black</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <input type="checkbox" id="custom-time-toggle"
+          style="accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer;" />
+        <label for="custom-time-toggle"
+          style="font-size: 13px; color: var(--text-primary); cursor: pointer; user-select: none;">Custom Time
+          Control</label>
+      </div>
+    </div>
+
+    <div id="custom-time-inputs" class="form-group" style="display: none; flex-direction: column; gap: 16px;">
+      <div style="display: flex; gap: 16px;">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+          <label
+            style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">Starting
+            minutes</label>
+          <input id="custom-minutes" type="number" class="input-field" value="10" min="1" max="180" />
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+          <label
+            style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">Increment
+            (seconds)</label>
+          <input id="custom-increment" type="number" class="input-field" value="0" min="0" max="60" />
+        </div>
+      </div>
+    </div>
+
+    <div class="button-group" style="flex-direction: column; gap: 12px; width: 100%;">
+      <button id="create-challenge-btn" class="btn btn-primary" style="width: 100%;" type="button">Create Challenge
+        Link</button>
+      <button id="back-to-lobby-btn" class="btn btn-secondary" style="width: 100%;" type="button">Back</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       Play a Friend — Waiting Room Card
+       ============================================================ -->
+  <div id="waiting-room" class="lobby-card hidden">
+    <div class="brand">
+      <h1 class="title">NeoChess</h1>
+      <p class="subtitle">Play a Friend</p>
+    </div>
+
+    <div
+      style="display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 8px 0; text-align: center;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 16px; font-weight: 500; color: var(--text-primary);">Waiting for opponent</span>
+        <span class="waiting-pulse"></span>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted);">Share the challenge link below with your friend to start the
+        game.</p>
+    </div>
+
+    <div class="form-group" style="width: 100%;">
+      <label
+        style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">Challenge
+        Link</label>
+      <div style="display: flex; gap: 8px; width: 100%;">
+        <input id="share-link-input" type="text" class="input-field" readonly
+          style="flex: 1; background: var(--bg-surface); font-family: 'JetBrains Mono', monospace; font-size: 12px; text-overflow: ellipsis;" />
+        <button id="copy-link-btn" class="btn btn-primary" style="flex: 0 0 100px; padding: 0; font-size: 13px;"
+          type="button">Copy Link</button>
+      </div>
+    </div>
+
+    <div class="button-group" style="width: 100%; margin-top: 12px;">
+      <button id="cancel-waiting-btn" class="btn btn-secondary" style="width: 100%;" type="button">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       Game Screen (initially hidden)
+       ============================================================ -->
+  <div id="game-view">
+    <div class="glass-container">
+      <!-- ── Board area ─────────────────────────────────────────────── -->
+      <div id="board-area">
+        <!-- Rank labels (8 → 1) -->
+        <div id="rank-labels"></div>
+
+        <!-- Board grid + file labels (a → h) -->
+        <div id="board-col">
+          <div id="board"></div>
+          <div id="file-labels"></div>
+        </div>
+      </div>
+
+      <!-- ── Right Sidebar ──────────────────────────────────────────── -->
+      <div id="sidebar">
+        <!-- Player label -->
+        <div id="player-label"></div>
+
+        <!-- Clock Display -->
+        <div id="clock-container" style="display: none; justify-content: space-between; margin-bottom: 4px; font-family: monospace; font-size: 1.15em; font-weight: bold; background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">
+          <div id="clock-white" style="color: #f1f5f9;">White: 0:00</div>
+          <div id="clock-black" style="color: #94a3b8;">Black: 0:00</div>
+        </div>
+
+        <!-- Turn indicator -->
+        <div id="turn-row">
+          <div id="turn-dot"></div>
+          <span id="turn-text">White to move</span>
+        </div>
+
+        <!-- Game status -->
+        <div id="status-line">In progress</div>
+
+        <!-- Move history -->
+        <span id="history-label">Move History</span>
+        <div id="history">
+          <span id="history-empty">No moves yet.</span>
+        </div>
+
+        <!-- Pass Turn button -->
+        <button id="pass-btn" type="button">&#10140; Pass Turn</button>
+
+        <!-- Resign button -->
+        <button id="resign-btn" type="button" style="display: none;">&#9872; Resign</button>
+
+        <!-- Draw buttons -->
+        <button id="offer-draw-btn" type="button" style="display: none;">&#9872; Offer Draw</button>
+        <button id="accept-draw-btn" type="button" style="display: none;">&#10003; Accept Draw</button>
+        <button id="decline-draw-btn" type="button" style="display: none;">&#10005; Decline Draw</button>
+
+        <!-- Rematch buttons -->
+        <button id="request-rematch-btn" type="button" style="display: none;">&#8635; Request Rematch</button>
+        <button id="accept-rematch-btn" type="button" style="display: none;">&#10003; Accept Rematch</button>
+        <button id="decline-rematch-btn" type="button" style="display: none;">&#10005; Decline Rematch</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase JS client (UMD build — exposes window.supabase) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+  <!-- ================================================================
+         Game Logic — chess.js is imported from the built ESM bundle.
+         All JS is inline; no build step required.
+    ================================================================ -->
+  <script type="module">
+    import { Chess } from '../dist/esm/chess.js';
+
+    /*
+     * ──────────────────────────────────────────────────────────────────
+     * SUPABASE DATABASE SCHEMA (Run in SQL Editor)
+     * ──────────────────────────────────────────────────────────────────
+     * alter table games add column end_reason text;
+     * alter table games add column draw_offered_by text;
+     * alter table games add column rematch_requested_by text;
+     * alter table games add column clock_white_ms bigint;
+     * alter table games add column clock_black_ms bigint;
+     * alter table games add column turn_started_at timestamptz;
+     * 
+     * create table games (
+     *   id uuid primary key default gen_random_uuid(),
+     *   room_code text not null, -- (no longer unique to support rematch rows)
+     *   host_color text not null,
+     *   white_username text,
+     *   black_username text,
+     *   time_control_minutes integer not null,
+     *   time_control_increment integer not null default 0,
+     *   clock_white_ms bigint,
+     *   clock_black_ms bigint,
+     *   turn_started_at timestamptz,
+     *   status text not null default 'waiting', -- waiting | active | finished
+     *   winner text,                             -- 'white' | 'black' | 'draw' | null
+     *   created_at timestamptz default now(),
+     *   started_at timestamptz,
+     *   ended_at timestamptz,
+     *   end_reason text
+     * );
+     *
+     * create table moves (
+     *   id uuid primary key default gen_random_uuid(),
+     *   game_id uuid references games(id) on delete cascade,
+     *   move_number integer not null,
+     *   san text not null,
+     *   fen_after text not null,
+     *   flags text,
+     *   created_at timestamptz default now()
+     * );
+     *
+     * alter table games enable row level security;
+     * alter table moves enable row level security;
+     *
+     * create policy "Allow public read access to games"
+     *   on games for select using (true);
+     * create policy "Allow public insert to games"
+     *   on games for insert with check (true);
+     * create policy "Allow public update to games"
+     *   on games for update using (true);
+     *
+     * create policy "Allow public read access to moves"
+     *   on moves for select using (true);
+     * create policy "Allow public insert to moves"
+     *   on moves for insert with check (true);
+     * ──────────────────────────────────────────────────────────────────
+     */
+
+    // ─── DOM helpers ──────────────────────────────────────────────────
+    const $ = (id) => document.getElementById(id);
+
+    // ─── Supabase client ──────────────────────────────────────────────
+    const SUPABASE_URL = 'https://bblhtzpjudskebvqnleu.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_AQkTX0hDm4PXxT8Ek1R_dA_BUAmmXJC';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ─── Stockfish Worker ─────────────────────────────────────────────
+    let stockfish = null;
+    let stockfishReady = false;
+    let awaitingBestMove = null;
+
+    function initStockfish() {
+      return new Promise((resolve, reject) => {
+        try {
+          stockfish = new Worker('lib/stockfish.js');
+        } catch (e) {
+          reject(new Error('Failed to create Stockfish worker: ' + e.message));
+          return;
+        }
+
+        let gotUciOk = false;
+
+        stockfish.onmessage = (e) => {
+          const line = typeof e.data === 'string' ? e.data : '';
+
+          if (!gotUciOk && line === 'uciok') {
+            gotUciOk = true;
+            stockfish.postMessage('isready');
+            return;
+          }
+
+          if (!stockfishReady && line === 'readyok') {
+            stockfishReady = true;
+            resolve();
+            return;
+          }
+
+          if (awaitingBestMove && line.startsWith('bestmove')) {
+            const parts = line.split(/\s+/);
+            const move = parts[1] || null;
+            const cb = awaitingBestMove;
+            awaitingBestMove = null;
+            cb(move);
+          }
+        };
+
+        stockfish.onerror = (e) => {
+          if (!stockfishReady) {
+            reject(new Error('Stockfish worker error'));
+          }
+        };
+
+        stockfish.postMessage('uci');
+      });
+    }
+
+    function getStockfishMove(fen) {
+      return new Promise((resolve) => {
+        if (!stockfish || !stockfishReady) {
+          resolve(null);
+          return;
+        }
+        awaitingBestMove = resolve;
+        stockfish.postMessage('position fen ' + fen);
+        stockfish.postMessage('go depth 8');
+
+        setTimeout(() => {
+          if (awaitingBestMove === resolve) {
+            awaitingBestMove = null;
+            resolve(null);
+          }
+        }, 10000);
+      });
+    }
+
+    // ─── Game State ───────────────────────────────────────────────────
+    const REQUIRE_DOUBLE_CLICK_SELF_CAPTURE = true;
+
+    const chess = new Chess();
+    let selectedSq = null;
+    let legalTargets = [];
+    let lastMove = null;
+    let playerName = '';
+    let aiThinking = false;
+    let pendingSelfCaptureSq = null;
+
+    let gameMode = 'ai';
+    let playerColor = 'w';
+    let gameId = null;
+    let currentRoomCode = null;
+    let whitePlayerName = '';
+    let blackPlayerName = '';
+    let waitingChannel = null;
+    let movesChannel = null;
+    let persistedMoveCount = 0;
+    let gameResignedBy = null;
+    let gameDrawOfferedBy = null; // 'white', 'black', or null
+    let gameDrawAgreement = false;
+    let gameEndReason = null;
+    let gameWinner = null;
+    let gameRematchRequestedBy = null; // 'white', 'black', or null
+
+    let clockWhiteMs = null;
+    let clockBlackMs = null;
+    let turnStartedAt = null;
+    let timeControlIncrement = 0;
+    let clockInterval = null;
+
+    const GLYPHS = {
+      wK: '\u2654', wQ: '\u2655', wR: '\u2656', wB: '\u2657', wN: '\u2658', wP: '\u2659',
+      bK: '\u265A', bQ: '\u265B', bR: '\u265C', bB: '\u265D', bN: '\u265E', bP: '\u265F',
+    };
+
+    function pieceGlyph(piece) {
+      const key = `${piece.color}${piece.type.toUpperCase()}`;
+      return GLYPHS[key] ?? '';
+    }
+
+    // ─── Board render ─────────────────────────────────────────────────
+    function renderBoard() {
+      const boardEl = $('board');
+      boardEl.innerHTML = '';
+
+      const flipBoard = gameMode === 'multiplayer' && playerColor === 'b';
+      const startRank = flipBoard ? 0 : 7;
+      const endRank = flipBoard ? 8 : -1;
+      const rankStep = flipBoard ? 1 : -1;
+      const startFile = flipBoard ? 7 : 0;
+      const endFile = flipBoard ? -1 : 8;
+      const fileStep = flipBoard ? -1 : 1;
+
+      for (let rank = startRank; rank !== endRank; rank += rankStep) {
+        for (let file = startFile; file !== endFile; file += fileStep) {
+          const sq = String.fromCharCode(97 + file) + (rank + 1);
+          const isLight = (rank + file) % 2 !== 0;
+          const piece = chess.get(sq);
+
+          const div = document.createElement('div');
+          div.className = `square ${isLight ? 'light' : 'dark'}`;
+          div.dataset.sq = sq;
+
+          // Layer: last-move tint
+          if (lastMove && (sq === lastMove.from || sq === lastMove.to)) {
+            div.classList.add('last-move');
+          }
+
+          // Layer: selected square
+          if (sq === selectedSq) {
+            div.classList.add('selected');
+          }
+
+          // Layer: self-capture pending (awaiting confirmation click)
+          if (sq === pendingSelfCaptureSq) {
+            div.classList.add('self-capture-pending');
+          }
+
+          // Legal-move dot / ring overlay
+          if (legalTargets.includes(sq)) {
+            const dot = document.createElement('div');
+            dot.className = 'legal-dot';
+            div.appendChild(dot);
+
+            // Ring style when there's a capturable piece on the target
+            if (piece) {
+              div.classList.add('has-piece');
+            }
+          }
+
+          // Piece glyph
+          if (piece) {
+            const span = document.createElement('span');
+            span.className = `piece ${piece.color === 'w' ? 'white' : 'black'}`;
+            span.textContent = pieceGlyph(piece);
+            // Make piece draggable when it belongs to the human player (White)
+            if (!aiThinking && chess.turn() === 'w' && piece.color === 'w' && !gameResignedBy && !gameDrawAgreement && !gameEndReason && !chess.isGameOver()) {
+              span.draggable = true;
+              span.addEventListener('dragstart', (e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', sq);
+
+                selectedSq = sq;
+                legalTargets = chess.moves({ square: sq, verbose: true }).map((m) => m.to);
+                pendingSelfCaptureSq = null;
+
+                requestAnimationFrame(() => {
+                  span.classList.add('dragging');
+
+                  const board = $('board');
+                  board.querySelectorAll('.legal-dot').forEach(d => d.remove());
+                  board.querySelectorAll('.has-piece').forEach(d => d.classList.remove('has-piece'));
+                  board.querySelectorAll('.selected').forEach(d => d.classList.remove('selected'));
+                  board.querySelectorAll('.self-capture-pending').forEach(d => d.classList.remove('self-capture-pending'));
+
+                  div.classList.add('selected');
+
+                  legalTargets.forEach(targetSq => {
+                    const targetDiv = board.querySelector(`[data-sq="${targetSq}"]`);
+                    if (targetDiv) {
+                      const dot = document.createElement('div');
+                      dot.className = 'legal-dot';
+                      if (targetDiv.querySelector('.piece')) targetDiv.classList.add('has-piece');
+                      targetDiv.appendChild(dot);
+                    }
+                  });
+                });
+              });
+              span.addEventListener('dragend', () => {
+                span.classList.remove('dragging');
+                renderBoard();
+              });
+            }
+            div.appendChild(span);
+          }
+
+          // Drop target: allow dragover on all squares
+          div.addEventListener('dragover', (e) => {
+            if (aiThinking || chess.turn() !== 'w') return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            div.classList.add('drag-over');
+          });
+          div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+          div.addEventListener('drop', (e) => {
+            e.preventDefault();
+            div.classList.remove('drag-over');
+            const fromSq = e.dataTransfer.getData('text/plain');
+            if (fromSq && fromSq !== sq) handleDrop(fromSq, sq);
+          });
+
+          div.addEventListener('click', () => handleSquareClick(sq));
+          boardEl.appendChild(div);
+        }
+      }
+
+      renderCoords();
+      renderSidebar();
+    }
+
+    // ─── Coordinate labels ────────────────────────────────────────────
+    function renderCoords() {
+      const rankEl = $('rank-labels');
+      const fileEl = $('file-labels');
+      rankEl.innerHTML = '';
+      fileEl.innerHTML = '';
+
+      const flipBoard = gameMode === 'multiplayer' && playerColor === 'b';
+
+      const startR = flipBoard ? 1 : 8;
+      const endR = flipBoard ? 9 : 0;
+      const stepR = flipBoard ? 1 : -1;
+      for (let r = startR; r !== endR; r += stepR) {
+        const span = document.createElement('span');
+        span.className = 'coord-label';
+        span.textContent = r;
+        rankEl.appendChild(span);
+      }
+
+      const startF = flipBoard ? 7 : 0;
+      const endF = flipBoard ? -1 : 8;
+      const stepF = flipBoard ? -1 : 1;
+      for (let f = startF; f !== endF; f += stepF) {
+        const span = document.createElement('span');
+        span.className = 'coord-label';
+        span.textContent = String.fromCharCode(97 + f);
+        fileEl.appendChild(span);
+      }
+    }
+
+    // ─── Sidebar render ───────────────────────────────────────────────
+    function renderSidebar() {
+      const turnDot = $('turn-dot');
+      const turnText = $('turn-text');
+      const statusEl = $('status-line');
+      const historyEl = $('history');
+      const playerLabel = $('player-label');
+
+      // Player label
+      if (gameMode === 'multiplayer') {
+        playerLabel.textContent = `${whitePlayerName || 'White'} (White) vs ${blackPlayerName || 'Black'} (Black)`;
+      } else {
+        playerLabel.textContent = `${playerName} (White) vs Stockfish (Black)`;
+      }
+
+      // Turn indicator
+      const whiteTurn = chess.turn() === 'w';
+      turnDot.className = whiteTurn ? '' : 'black-turn';
+      turnDot.id = 'turn-dot';
+
+      if (gameMode === 'multiplayer') {
+        turnText.textContent = whiteTurn
+          ? `${whitePlayerName || 'White'}'s turn`
+          : `${blackPlayerName || 'Black'}'s turn`;
+      } else {
+        turnText.textContent = whiteTurn ? `${playerName}'s turn` : 'Stockfish thinking…';
+      }
+
+      // Game status — NeoChess rule handling
+      let statusText = 'In progress';
+      let isAlert = false;
+
+      const kingResult = chess.isKingCaptured();
+      const retaliating = chess.isRetaliationPending();
+
+      if (gameMode === 'multiplayer' && gameEndReason) {
+        if (gameEndReason === 'resignation') {
+          statusText = gameResignedBy === 'w' ? 'White resigned' : 'Black resigned';
+          isAlert = true;
+        } else if (gameEndReason === 'draw_agreement') {
+          statusText = 'Draw by agreement';
+        } else if (gameEndReason === 'time_forfeit') {
+          statusText = `Time forfeit — ${gameWinner === 'white' ? (whitePlayerName || 'White') : (blackPlayerName || 'Black')} wins!`;
+          isAlert = true;
+        } else if (gameEndReason === 'king_capture') {
+          statusText = `${gameWinner === 'white' ? (whitePlayerName || 'White') : (blackPlayerName || 'Black')} wins!`;
+          isAlert = true;
+        } else if (gameEndReason === 'both_kings_captured') {
+          statusText = 'Draw — both kings captured!';
+          isAlert = true;
+        } else if (gameEndReason === 'pass_draw') {
+          statusText = 'Draw — both players passed';
+        } else if (gameEndReason === 'stalemate') {
+          statusText = 'Stalemate — Draw';
+        } else if (gameEndReason === 'draw') {
+          statusText = 'Draw';
+        } else {
+          statusText = `Game Over — ${gameEndReason}`;
+        }
+      } else if (gameDrawAgreement) {
+        statusText = 'Draw by agreement';
+      } else if (gameResignedBy) {
+        statusText = gameResignedBy === 'w' ? 'White resigned' : 'Black resigned';
+        isAlert = true;
+      } else if (retaliating) {
+        statusText = gameMode === 'multiplayer'
+          ? `Retaliation available — ${blackPlayerName || 'Black'} to move`
+          : 'Retaliation available — Black to move';
+        isAlert = true;
+      } else if (chess.isPassDraw()) {
+        statusText = 'Draw — both players passed';
+      } else if (kingResult.captured) {
+        if (kingResult.winner === null) {
+          statusText = 'Draw — both kings captured!';
+        } else {
+          let winnerName;
+          if (gameMode === 'multiplayer') {
+            winnerName = kingResult.winner === 'w' ? (whitePlayerName || 'White') : (blackPlayerName || 'Black');
+          } else {
+            winnerName = kingResult.winner === 'w' ? playerName : 'Stockfish';
+          }
+          statusText = `${winnerName} wins!`;
+        }
+        isAlert = true;
+      } else if (chess.isStalemate()) {
+        statusText = 'Stalemate — Draw';
+      } else if (chess.isDraw()) {
+        statusText = 'Draw';
+      }
+
+      if (gameMode === 'ai' && aiThinking && !chess.isGameOver()) {
+        statusText = 'Stockfish is thinking…';
+      }
+
+      statusEl.textContent = statusText;
+      if (gameMode === 'ai' && aiThinking && !chess.isGameOver()) {
+        statusEl.className = 'thinking';
+      } else {
+        statusEl.className = isAlert ? 'alert' : '';
+      }
+      statusEl.id = 'status-line';
+
+      // Disable/enable pass button
+      const passBtn = $('pass-btn');
+      const resignBtn = $('resign-btn');
+      
+      if (resignBtn) {
+        resignBtn.style.display = gameMode === 'multiplayer' ? 'block' : 'none';
+        resignBtn.disabled = gameResignedBy || gameDrawAgreement || gameEndReason || chess.isGameOver();
+      }
+
+      const offerDrawBtn = $('offer-draw-btn');
+      const acceptDrawBtn = $('accept-draw-btn');
+      const declineDrawBtn = $('decline-draw-btn');
+
+      if (gameMode === 'multiplayer') {
+        const fullColor = playerColor === 'w' ? 'white' : 'black';
+        const opponentColor = playerColor === 'w' ? 'black' : 'white';
+
+        if (gameDrawOfferedBy === opponentColor && !gameDrawAgreement && !gameResignedBy && !gameEndReason && !chess.isGameOver()) {
+          // Opponent offered a draw
+          offerDrawBtn.style.display = 'none';
+          acceptDrawBtn.style.display = 'block';
+          declineDrawBtn.style.display = 'block';
+        } else {
+          acceptDrawBtn.style.display = 'none';
+          declineDrawBtn.style.display = 'none';
+          offerDrawBtn.style.display = 'block';
+          
+          if (gameDrawOfferedBy === fullColor || gameDrawAgreement || gameResignedBy || gameEndReason || chess.isGameOver()) {
+            offerDrawBtn.disabled = true;
+          } else {
+            offerDrawBtn.disabled = false;
+          }
+        }
+      } else {
+        offerDrawBtn.style.display = 'none';
+        acceptDrawBtn.style.display = 'none';
+        declineDrawBtn.style.display = 'none';
+      }
+
+      if (passBtn) {
+        if (gameMode === 'multiplayer') {
+          passBtn.disabled = gameResignedBy || gameDrawAgreement || gameEndReason || retaliating || chess.isGameOver() || chess.turn() !== playerColor;
+        } else {
+          passBtn.disabled = gameResignedBy || gameDrawAgreement || gameEndReason || retaliating || chess.isGameOver() || chess.turn() === 'b' || aiThinking;
+        }
+      }
+
+      const requestRematchBtn = $('request-rematch-btn');
+      const acceptRematchBtn = $('accept-rematch-btn');
+      const declineRematchBtn = $('decline-rematch-btn');
+
+      if (requestRematchBtn && acceptRematchBtn && declineRematchBtn) {
+        if (gameMode === 'multiplayer') {
+          const fullColor = playerColor === 'w' ? 'white' : 'black';
+          const opponentColor = playerColor === 'w' ? 'black' : 'white';
+
+          if (gameEndReason || gameResignedBy || gameDrawAgreement || chess.isGameOver()) {
+            // Game is finished, show rematch options
+            if (gameRematchRequestedBy === opponentColor) {
+              // Opponent requested rematch, show Accept/Decline
+              requestRematchBtn.style.display = 'none';
+              acceptRematchBtn.style.display = 'block';
+              declineRematchBtn.style.display = 'block';
+            } else if (gameRematchRequestedBy === fullColor) {
+              // Local player requested rematch, show requested state (disabled)
+              acceptRematchBtn.style.display = 'none';
+              declineRematchBtn.style.display = 'none';
+              requestRematchBtn.style.display = 'block';
+              requestRematchBtn.disabled = true;
+              requestRematchBtn.textContent = 'Waiting for Opponent…';
+            } else {
+              // No rematch request yet, show Request Rematch
+              acceptRematchBtn.style.display = 'none';
+              declineRematchBtn.style.display = 'none';
+              requestRematchBtn.style.display = 'block';
+              requestRematchBtn.disabled = false;
+              requestRematchBtn.textContent = 'Request Rematch';
+            }
+          } else {
+            // Game is not finished, hide all rematch buttons
+            requestRematchBtn.style.display = 'none';
+            acceptRematchBtn.style.display = 'none';
+            declineRematchBtn.style.display = 'none';
+          }
+        } else {
+          requestRematchBtn.style.display = 'none';
+          acceptRematchBtn.style.display = 'none';
+          declineRematchBtn.style.display = 'none';
+        }
+      }
+
+      // Move history (paired as "1. e4 e5")
+      const history = chess.history();
+      historyEl.innerHTML = '';
+
+      if (history.length === 0) {
+        const empty = document.createElement('span');
+        empty.id = 'history-empty';
+        empty.textContent = 'No moves yet.';
+        historyEl.appendChild(empty);
+      } else {
+        for (let i = 0; i < history.length; i += 2) {
+          const row = document.createElement('div');
+          row.className = 'history-row';
+
+          const numSpan = document.createElement('span');
+          numSpan.className = 'history-num';
+          numSpan.textContent = `${Math.floor(i / 2) + 1}.`;
+
+          const whiteSpan = document.createElement('span');
+          whiteSpan.className = 'history-white';
+          whiteSpan.textContent = history[i];
+
+          row.appendChild(numSpan);
+          row.appendChild(whiteSpan);
+
+          if (history[i + 1] !== undefined) {
+            const blackSpan = document.createElement('span');
+            blackSpan.className = 'history-black';
+            blackSpan.textContent = history[i + 1];
+            row.appendChild(blackSpan);
+          }
+
+          historyEl.appendChild(row);
+        }
+        // Newest move always visible
+        historyEl.scrollTop = historyEl.scrollHeight;
+      }
+      renderClock();
+    }
+
+    // ─── Live Clock Helpers ───────────────────────────────────────────
+    function formatTimeMs(ms) {
+      if (ms === null || ms === undefined || isNaN(ms)) return '0:00';
+      const totalSec = Math.max(0, Math.floor(ms / 1000));
+      const m = Math.floor(totalSec / 60);
+      const s = totalSec % 60;
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function getComputedClock(color) {
+      if (clockWhiteMs === null || clockBlackMs === null) return null;
+      const base = color === 'w' ? clockWhiteMs : clockBlackMs;
+      const isOver = gameEndReason || gameWinner || chess.isGameOver() || gameResignedBy || gameDrawAgreement;
+      if (gameMode !== 'multiplayer' || isOver || chess.turn() !== color || !turnStartedAt) {
+        return base;
+      }
+      const elapsed = Date.now() - new Date(turnStartedAt).getTime();
+      return Math.max(0, base - elapsed);
+    }
+
+    function renderClock() {
+      const container = $('clock-container');
+      if (!container) return;
+      if (gameMode !== 'multiplayer') {
+        container.style.display = 'none';
+        return;
+      }
+      container.style.display = 'flex';
+      const whiteEl = $('clock-white');
+      const blackEl = $('clock-black');
+      
+      const wMs = getComputedClock('w');
+      const bMs = getComputedClock('b');
+
+      if (whiteEl) whiteEl.textContent = `${whitePlayerName || 'White'}: ${formatTimeMs(wMs)}`;
+      if (blackEl) blackEl.textContent = `${blackPlayerName || 'Black'}: ${formatTimeMs(bMs)}`;
+      
+      const turn = chess.turn();
+      const isOver = gameEndReason || gameWinner || chess.isGameOver() || gameResignedBy || gameDrawAgreement;
+      if (whiteEl) whiteEl.style.opacity = (!isOver && turn === 'w') ? '1' : '0.6';
+      if (blackEl) blackEl.style.opacity = (!isOver && turn === 'b') ? '1' : '0.6';
+    }
+
+    async function checkTimeForfeit() {
+      if (gameMode !== 'multiplayer' || !gameId || gameEndReason || gameWinner || chess.isGameOver() || gameResignedBy || gameDrawAgreement) return false;
+      const turn = chess.turn();
+      const rem = getComputedClock(turn);
+      if (rem !== null && rem <= 0) {
+        const opponentColor = turn === 'w' ? 'black' : 'white';
+        gameEndReason = 'time_forfeit';
+        gameWinner = opponentColor;
+        if (turn === 'w') clockWhiteMs = 0; else clockBlackMs = 0;
+        renderSidebar();
+        
+        await supabase.from('games').update({
+          status: 'finished',
+          winner: opponentColor,
+          end_reason: 'time_forfeit',
+          clock_white_ms: clockWhiteMs,
+          clock_black_ms: clockBlackMs
+        }).eq('id', gameId);
+        return true;
+      }
+      return false;
+    }
+
+    function startClockInterval() {
+      if (clockInterval) clearInterval(clockInterval);
+      clockInterval = setInterval(() => {
+        if (gameMode !== 'multiplayer' || !gameId) {
+          if (clockInterval) clearInterval(clockInterval);
+          clockInterval = null;
+          return;
+        }
+        if (gameEndReason || gameWinner || chess.isGameOver() || gameResignedBy || gameDrawAgreement) {
+          renderClock();
+          return;
+        }
+        checkTimeForfeit();
+        renderClock();
+      }, 1000);
+      renderClock();
+    }
+
+    // ─── Convert UCI move string → chess.move() args ──────────────────
+    function parseUciMove(uci) {
+      if (!uci || uci.length < 4) return null;
+      const from = uci.substring(0, 2);
+      const to = uci.substring(2, 4);
+      const promotion = uci.length > 4 ? uci[4] : undefined;
+      return { from, to, promotion };
+    }
+
+    async function doAiMove() {
+      if (chess.isGameOver() || chess.turn() !== 'b') return;
+
+      aiThinking = true;
+      renderSidebar();
+
+      const fen = chess.fen();
+      const uciMove = await getStockfishMove(fen);
+
+      let moved = false;
+
+      // Try Stockfish's suggested move
+      if (uciMove && uciMove !== '(none)') {
+        const args = parseUciMove(uciMove);
+        if (args) {
+          try {
+            const result = chess.move(args);
+            if (result) {
+              lastMove = { from: result.from, to: result.to };
+              moved = true;
+            }
+          } catch (e) {
+            // Stockfish's move is illegal under NeoChess rules — fall through
+          }
+        }
+      }
+
+      // Fallback: pick a random legal move
+      if (!moved) {
+        const legalMoves = chess.moves({ verbose: true });
+        if (legalMoves.length > 0) {
+          const pick = legalMoves[Math.floor(Math.random() * legalMoves.length)];
+          try {
+            const result = chess.move({ from: pick.from, to: pick.to, promotion: pick.promotion });
+            if (result) {
+              lastMove = { from: result.from, to: result.to };
+              moved = true;
+            }
+          } catch (e) {
+            // Extremely unlikely — skip this turn
+          }
+        }
+      }
+
+      aiThinking = false;
+      selectedSq = null;
+      legalTargets = [];
+      renderBoard();
+
+      // If AI is in a retaliation window (its king was captured), it may need
+      // to move again immediately — but that should have been handled above.
+    }
+
+    // ─── Execute a validated move (shared by click and drag) ──────────
+    async function executeMove(from, to) {
+      if (gameMode === 'multiplayer' && await checkTimeForfeit()) {
+        return;
+      }
+      const moverColor = chess.turn();
+      const piece = chess.get(from);
+      const opts = { from, to };
+
+      // Auto-promote pawns to queen
+      if (
+        piece &&
+        piece.type === 'p' &&
+        ((piece.color === 'w' && to[1] === '8') ||
+          (piece.color === 'b' && to[1] === '1'))
+      ) {
+        opts.promotion = 'q';
+      }
+
+      let result = null;
+      try {
+        result = chess.move(opts);
+        if (result) lastMove = { from: result.from, to: result.to };
+      } catch (e) {
+        // Invalid move — ignore
+        return;
+      }
+
+      selectedSq = null;
+      legalTargets = [];
+      pendingSelfCaptureSq = null;
+      renderBoard();
+
+      // ── Persist to Supabase in multiplayer mode ────────────────────
+      if (gameMode === 'multiplayer' && gameId && result) {
+        persistedMoveCount++;
+        const flags = [];
+        if (result.flags && result.flags.includes('c')) flags.push('self_capture');
+        await supabase.from('moves').insert({
+          game_id: gameId,
+          move_number: persistedMoveCount,
+          san: result.san,
+          fen_after: chess.fen(),
+          flags: flags.join(',') || null,
+        });
+
+        const nowIso = new Date().toISOString();
+        const elapsed = turnStartedAt ? Math.max(0, Date.now() - new Date(turnStartedAt).getTime()) : 0;
+        const incMs = (timeControlIncrement || 0) * 1000;
+        if (moverColor === 'w') {
+          clockWhiteMs = Math.max(0, (clockWhiteMs ?? 0) - elapsed) + incMs;
+        } else {
+          clockBlackMs = Math.max(0, (clockBlackMs ?? 0) - elapsed) + incMs;
+        }
+        turnStartedAt = nowIso;
+
+        const updateData = {
+          draw_offered_by: null,
+          clock_white_ms: clockWhiteMs,
+          clock_black_ms: clockBlackMs,
+          turn_started_at: turnStartedAt
+        };
+        if (chess.isGameOver()) {
+          updateData.status = 'finished';
+          const kingResult = chess.isKingCaptured();
+          if (kingResult.captured) {
+            if (kingResult.winner === null) {
+              updateData.winner = 'draw';
+              updateData.end_reason = 'both_kings_captured';
+            } else {
+              updateData.winner = kingResult.winner === 'w' ? 'white' : 'black';
+              updateData.end_reason = 'king_capture';
+            }
+          } else if (chess.isStalemate()) {
+            updateData.winner = 'draw';
+            updateData.end_reason = 'stalemate';
+          } else if (chess.isDraw()) {
+            updateData.winner = 'draw';
+            updateData.end_reason = 'draw';
+          }
+        }
+        await supabase.from('games').update(updateData).eq('id', gameId);
+        return; // opponent move comes via realtime subscription
+      }
+
+      // ── AI mode: trigger Stockfish after human move ────────────────
+      if (gameMode === 'ai' && !chess.isGameOver() && chess.turn() === 'b') {
+        setTimeout(() => doAiMove(), 150);
+      }
+    }
+
+    // ─── Drag-and-drop handler ────────────────────────────────────────
+    function handleDrop(from, to) {
+      // In multiplayer block moves when it's not this player's turn
+      if (gameMode === 'multiplayer' && chess.turn() !== playerColor) return;
+      if (chess.isGameOver() || gameResignedBy || gameDrawAgreement || gameEndReason || aiThinking || (gameMode === 'ai' && chess.turn() !== 'w')) return;
+      const piece = chess.get(from);
+      if (!piece || piece.color !== chess.turn()) return;
+      const targets = chess.moves({ square: from, verbose: true }).map((m) => m.to);
+      if (targets.includes(to)) executeMove(from, to);
+    }
+
+    // ─── Right-click deselects ────────────────────────────────────────
+    $('board').addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (selectedSq || pendingSelfCaptureSq) {
+        selectedSq = null;
+        legalTargets = [];
+        pendingSelfCaptureSq = null;
+        renderBoard();
+      }
+    });
+
+    // ─── Click-to-move handler ────────────────────────────────────────
+    function handleSquareClick(sq) {
+      if (chess.isGameOver() || gameResignedBy || gameDrawAgreement || gameEndReason) return;
+      // In AI mode block during AI turn / thinking
+      if (gameMode === 'ai') {
+        if (aiThinking) return;
+        if (chess.turn() === 'b') return;
+      }
+      // In multiplayer mode block when it's not this player's turn
+      if (gameMode === 'multiplayer' && chess.turn() !== playerColor) return;
+
+      const currentTurn = chess.turn();
+      const targetPiece = chess.get(sq);
+      const isFriendlyTarget = targetPiece && targetPiece.color === currentTurn;
+
+      // ── Phase: a piece is already selected ────────────────────────
+      if (selectedSq && legalTargets.includes(sq)) {
+
+        // Self-capture gate: friendly piece on a legal target
+        if (REQUIRE_DOUBLE_CLICK_SELF_CAPTURE && isFriendlyTarget) {
+          if (pendingSelfCaptureSq === sq) {
+            // Second click on the same square → confirm and execute
+            executeMove(selectedSq, sq);
+          } else {
+            // First click → arm the pending state, keep selection
+            pendingSelfCaptureSq = sq;
+            renderBoard();
+          }
+          return;
+        }
+
+        // Enemy capture or move to empty square → execute immediately
+        pendingSelfCaptureSq = null;
+        executeMove(selectedSq, sq);
+        return;
+      }
+
+      // ── Clicking a piece of the current side → select / re-select ──
+      if (isFriendlyTarget) {
+        selectedSq = sq;
+        legalTargets = chess.moves({ square: sq, verbose: true }).map((m) => m.to);
+        pendingSelfCaptureSq = null;
+        renderBoard();
+        return;
+      }
+
+      // ── Clicking elsewhere → cancel all selection state ───────────
+      selectedSq = null;
+      legalTargets = [];
+      pendingSelfCaptureSq = null;
+      renderBoard();
+    }
+
+    // ─── Resign ──────────────────────────────────────────────────────
+    $('resign-btn')?.addEventListener('click', async () => {
+      if (!confirm("Are you sure you want to resign? This cannot be undone.")) return;
+      
+      const winnerColor = playerColor === 'w' ? 'black' : 'white';
+      
+      // Update games table
+      await supabase
+        .from('games')
+        .update({
+          status: 'finished',
+          winner: winnerColor,
+          end_reason: 'resignation'
+        })
+        .eq('id', gameId);
+    });
+
+    // ─── Draw Offers ─────────────────────────────────────────────────
+    $('offer-draw-btn')?.addEventListener('click', async () => {
+      const fullColor = playerColor === 'w' ? 'white' : 'black';
+      await supabase.from('games').update({ draw_offered_by: fullColor }).eq('id', gameId);
+    });
+
+    $('accept-draw-btn')?.addEventListener('click', async () => {
+      await supabase.from('games').update({
+        status: 'finished',
+        winner: null,
+        end_reason: 'draw_agreement',
+        draw_offered_by: null
+      }).eq('id', gameId);
+    });
+
+    $('decline-draw-btn')?.addEventListener('click', async () => {
+      await supabase.from('games').update({ draw_offered_by: null }).eq('id', gameId);
+    });
+
+    // ─── Rematch ─────────────────────────────────────────────────────
+    $('request-rematch-btn')?.addEventListener('click', async () => {
+      const fullColor = playerColor === 'w' ? 'white' : 'black';
+      await supabase
+        .from('games')
+        .update({ rematch_requested_by: fullColor })
+        .eq('id', gameId);
+    });
+
+    $('accept-rematch-btn')?.addEventListener('click', async () => {
+      const btn = $('accept-rematch-btn');
+      btn.disabled = true;
+
+      const { data: oldGame, error: fetchErr } = await supabase
+        .from('games')
+        .select('*')
+        .eq('id', gameId)
+        .single();
+
+      if (fetchErr || !oldGame) {
+        btn.disabled = false;
+        alert('Failed to load game details for rematch.');
+        return;
+      }
+
+      const newWhite = oldGame.black_username;
+      const newBlack = oldGame.white_username;
+      const tcMs = oldGame.time_control_minutes * 60000;
+      const nowIso = new Date().toISOString();
+
+      const insertData = {
+        room_code: oldGame.room_code || currentRoomCode,
+        host_color: oldGame.host_color,
+        white_username: newWhite,
+        black_username: newBlack,
+        time_control_minutes: oldGame.time_control_minutes,
+        time_control_increment: oldGame.time_control_increment,
+        clock_white_ms: tcMs,
+        clock_black_ms: tcMs,
+        turn_started_at: nowIso,
+        status: 'active',
+        started_at: nowIso
+      };
+
+      const { data: newGame, error: insertErr } = await supabase
+        .from('games')
+        .insert(insertData)
+        .select('id')
+        .single();
+
+      btn.disabled = false;
+
+      if (insertErr || !newGame) {
+        alert('Failed to create rematch game: ' + (insertErr?.message ?? 'unknown error'));
+        return;
+      }
+
+      if (gameId !== newGame.id) {
+        gameId = newGame.id;
+        playerColor = (newWhite === playerName) ? 'w' : 'b';
+        timeControlIncrement = oldGame.time_control_increment || 0;
+        clockWhiteMs = tcMs;
+        clockBlackMs = tcMs;
+        turnStartedAt = nowIso;
+        startMultiplayerGame(newWhite, newBlack);
+      }
+    });
+
+    $('decline-rematch-btn')?.addEventListener('click', async () => {
+      await supabase
+        .from('games')
+        .update({ rematch_requested_by: null })
+        .eq('id', gameId);
+    });
+
+    // ─── Pass ────────────────────────────────────────────────────────
+    $('pass-btn').addEventListener('click', async () => {
+      // AI mode: only on white's turn
+      if (gameMode === 'ai' && (aiThinking || chess.turn() === 'b')) return;
+      // Multiplayer mode: only on this player's turn
+      if (gameMode === 'multiplayer' && chess.turn() !== playerColor) return;
+      if (gameMode === 'multiplayer' && await checkTimeForfeit()) return;
+
+      const passingColor = chess.turn();
+      if (chess.pass()) {
+        selectedSq = null;
+        legalTargets = [];
+        pendingSelfCaptureSq = null;
+
+        // Persist pass as a special move row in multiplayer
+        if (gameMode === 'multiplayer' && gameId) {
+          persistedMoveCount++;
+          await supabase.from('moves').insert({
+            game_id: gameId,
+            move_number: persistedMoveCount,
+            san: '--',
+            fen_after: chess.fen(),
+            flags: 'pass',
+          });
+
+          const nowIso = new Date().toISOString();
+          const elapsed = turnStartedAt ? Math.max(0, Date.now() - new Date(turnStartedAt).getTime()) : 0;
+          const incMs = (timeControlIncrement || 0) * 1000;
+          if (passingColor === 'w') {
+            clockWhiteMs = Math.max(0, (clockWhiteMs ?? 0) - elapsed) + incMs;
+          } else {
+            clockBlackMs = Math.max(0, (clockBlackMs ?? 0) - elapsed) + incMs;
+          }
+          turnStartedAt = nowIso;
+
+          const updateData = {
+            draw_offered_by: null,
+            clock_white_ms: clockWhiteMs,
+            clock_black_ms: clockBlackMs,
+            turn_started_at: turnStartedAt
+          };
+          if (chess.isGameOver()) {
+            updateData.status = 'finished';
+            if (chess.isPassDraw()) {
+              updateData.winner = 'draw';
+              updateData.end_reason = 'pass_draw';
+            }
+          }
+          await supabase.from('games').update(updateData).eq('id', gameId);
+          renderBoard();
+          return;
+        }
+
+        renderBoard();
+
+        // After human passes in AI mode, trigger AI
+        if (gameMode === 'ai' && !chess.isGameOver() && chess.turn() === 'b') {
+          setTimeout(() => doAiMove(), 150);
+        }
+      }
+    });
+
+    // ─── Lobby → Game transition ──────────────────────────────────────
+    $('play-ai-btn').addEventListener('click', async () => {
+      const input = $('username-input');
+      const errorEl = $('lobby-error');
+      const name = input.value.trim();
+
+      if (!name) {
+        errorEl.textContent = 'Please enter a username.';
+        input.focus();
+        return;
+      }
+
+      playerName = name;
+      errorEl.textContent = '';
+
+      // Disable button while initializing
+      const btn = $('play-ai-btn');
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Loading Stockfish…';
+
+      try {
+        await initStockfish();
+      } catch (e) {
+        // If Stockfish fails to load, still allow play — AI will use random moves
+        console.warn('Stockfish failed to load, using random moves:', e);
+        stockfishReady = false;
+      }
+
+      btn.textContent = originalText;
+      btn.disabled = false;
+
+      // Hide lobby, show game
+      $('lobby').classList.add('hidden');
+      $('game-view').classList.add('active');
+
+      renderBoard();
+    });
+
+    // ─── Play a Friend UI Flow ────────────────────────────────────────
+    $('play-friend-btn').addEventListener('click', () => {
+      const input = $('username-input');
+      const errorEl = $('lobby-error');
+      const name = input.value.trim();
+
+      if (!name) {
+        errorEl.textContent = 'Please enter a username.';
+        input.focus();
+        return;
+      }
+
+      playerName = name;
+      errorEl.textContent = '';
+
+      $('lobby').classList.add('hidden');
+      $('friend-time-control').classList.remove('hidden');
+    });
+
+    $('back-to-lobby-btn').addEventListener('click', () => {
+      $('friend-time-control').classList.add('hidden');
+      $('lobby').classList.remove('hidden');
+    });
+
+    $('custom-time-toggle').addEventListener('change', (e) => {
+      const isCustom = e.target.checked;
+      $('time-preset-select').disabled = isCustom;
+      $('custom-time-inputs').style.display = isCustom ? 'flex' : 'none';
+    });
+
+    function generateRoomCode() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let code = '';
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
+    }
+
+    // ─── Helper: parse time control values from UI ────────────────────
+    function getTimeControl() {
+      const isCustom = $('custom-time-toggle').checked;
+      if (isCustom) {
+        return {
+          minutes: parseInt($('custom-minutes').value, 10) || 10,
+          increment: parseInt($('custom-increment').value, 10) || 0,
+        };
+      }
+      const preset = $('time-preset-select').value;
+      const parts = preset.split('+');
+      return {
+        minutes: parseInt(parts[0], 10),
+        increment: parts[1] ? parseInt(parts[1], 10) : 0,
+      };
+    }
+
+    // ─── Subscribe to realtime moves for a game ───────────────────────
+    // Applies any new move rows to the local board when they were NOT
+    // produced by the local player (i.e. opponent moves).
+    function subscribeToMoves(id) {
+      if (movesChannel) {
+        supabase.removeChannel(movesChannel);
+        movesChannel = null;
+      }
+
+      movesChannel = supabase
+        .channel(`moves:${id}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'moves', filter: `game_id=eq.${id}` },
+          (payload) => {
+            const row = payload.new;
+            // Skip moves we inserted ourselves (our persistedMoveCount already matches)
+            if (row.move_number <= persistedMoveCount) return;
+
+            persistedMoveCount = row.move_number;
+
+            if (row.flags === 'pass') {
+              chess.pass();
+            } else {
+              // Apply via FEN for robustness — load the FEN the opponent computed
+              chess.load(row.fen_after);
+              // Derive last move from the SAN for highlighting
+              const history = chess.history({ verbose: true });
+              if (history.length > 0) {
+                const last = history[history.length - 1];
+                lastMove = { from: last.from, to: last.to };
+              }
+            }
+
+            selectedSq = null;
+            legalTargets = [];
+            pendingSelfCaptureSq = null;
+            renderBoard();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${id}` },
+          (payload) => {
+            const row = payload.new;
+            gameDrawOfferedBy = row.draw_offered_by || null;
+            gameRematchRequestedBy = row.rematch_requested_by || null;
+            if (row.clock_white_ms !== undefined && row.clock_white_ms !== null) clockWhiteMs = row.clock_white_ms;
+            if (row.clock_black_ms !== undefined && row.clock_black_ms !== null) clockBlackMs = row.clock_black_ms;
+            if (row.turn_started_at !== undefined && row.turn_started_at !== null) turnStartedAt = row.turn_started_at;
+            if (row.time_control_increment !== undefined && row.time_control_increment !== null) timeControlIncrement = row.time_control_increment;
+            if (row.status === 'finished') {
+              gameEndReason = row.end_reason || null;
+              gameWinner = row.winner || null;
+              if (row.end_reason === 'resignation') {
+                gameResignedBy = row.winner === 'white' ? 'b' : 'w';
+              } else if (row.end_reason === 'draw_agreement') {
+                gameDrawAgreement = true;
+              }
+              renderBoard();
+            } else {
+              renderBoard();
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'games' },
+          (payload) => {
+            const row = payload.new;
+            if (currentRoomCode && row.room_code === currentRoomCode && row.status === 'active' && row.id !== gameId) {
+              gameId = row.id;
+              playerColor = (row.white_username === playerName) ? 'w' : 'b';
+              timeControlIncrement = row.time_control_increment || 0;
+              clockWhiteMs = row.clock_white_ms ?? (row.time_control_minutes * 60000);
+              clockBlackMs = row.clock_black_ms ?? (row.time_control_minutes * 60000);
+              turnStartedAt = row.turn_started_at || new Date().toISOString();
+              startMultiplayerGame(row.white_username, row.black_username);
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    function returnToLobby() {
+      if (movesChannel) {
+        supabase.removeChannel(movesChannel);
+        movesChannel = null;
+      }
+      if (waitingChannel) {
+        supabase.removeChannel(waitingChannel);
+        waitingChannel = null;
+      }
+      if (clockInterval) {
+        clearInterval(clockInterval);
+        clockInterval = null;
+      }
+      clockWhiteMs = null;
+      clockBlackMs = null;
+      turnStartedAt = null;
+      timeControlIncrement = 0;
+
+      gameId = null;
+      currentRoomCode = null;
+      gameMode = 'ai';
+      gameResignedBy = null;
+      gameDrawOfferedBy = null;
+      gameDrawAgreement = false;
+      gameEndReason = null;
+      gameWinner = null;
+      gameRematchRequestedBy = null;
+      persistedMoveCount = 0;
+      selectedSq = null;
+      legalTargets = [];
+      lastMove = null;
+      pendingSelfCaptureSq = null;
+
+      $('game-view').classList.remove('active');
+      $('lobby').classList.remove('hidden');
+      $('lobby-default-buttons').style.display = 'flex';
+      $('lobby-join-buttons').style.display = 'none';
+      document.querySelector('#lobby .subtitle').textContent = 'A new kind of chess';
+
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // ─── Helper: start the multiplayer game screen ────────────────────
+    function startMultiplayerGame(whiteUsername, blackUsername) {
+      whitePlayerName = whiteUsername;
+      blackPlayerName = blackUsername;
+
+      // Unsubscribe from the waiting channel — no longer needed
+      if (waitingChannel) {
+        supabase.removeChannel(waitingChannel);
+        waitingChannel = null;
+      }
+
+      // Hide all lobby/waiting cards
+      $('lobby').classList.add('hidden');
+      $('friend-time-control').classList.add('hidden');
+      $('waiting-room').classList.add('hidden');
+
+      // Reset game state
+      chess.reset();
+      selectedSq = null;
+      legalTargets = [];
+      lastMove = null;
+      persistedMoveCount = 0;
+      pendingSelfCaptureSq = null;
+      gameResignedBy = null;
+      gameDrawOfferedBy = null;
+      gameDrawAgreement = false;
+      gameEndReason = null;
+      gameWinner = null;
+      gameRematchRequestedBy = null;
+
+      $('game-view').classList.add('active');
+      renderBoard();
+
+      // Begin listening for opponent moves
+      subscribeToMoves(gameId);
+      startClockInterval();
+    }
+
+    // ─── Create Challenge (White side) ───────────────────────────────
+    $('create-challenge-btn').addEventListener('click', async () => {
+      const btn = $('create-challenge-btn');
+      btn.disabled = true;
+      btn.textContent = 'Creating…';
+
+      const tc = getTimeControl();
+      const code = generateRoomCode();
+      currentRoomCode = code;
+
+      const colorSelect = $('color-preset-select').value;
+      let hostColor = colorSelect;
+      if (hostColor === 'random') {
+        hostColor = Math.random() < 0.5 ? 'white' : 'black';
+      }
+
+      const tcMs = tc.minutes * 60000;
+      const nowIso = new Date().toISOString();
+      const insertData = {
+        room_code: code,
+        host_color: hostColor,
+        time_control_minutes: tc.minutes,
+        time_control_increment: tc.increment,
+        clock_white_ms: tcMs,
+        clock_black_ms: tcMs,
+        turn_started_at: nowIso,
+        status: 'waiting',
+      };
+      
+      if (hostColor === 'white') {
+        insertData.white_username = playerName;
+      } else {
+        insertData.black_username = playerName;
+      }
+
+      const { data, error } = await supabase
+        .from('games')
+        .insert(insertData)
+        .select('id')
+        .single();
+
+      btn.textContent = 'Create Challenge Link';
+      btn.disabled = false;
+
+      if (error || !data) {
+        alert('Failed to create game: ' + (error?.message ?? 'unknown error'));
+        return;
+      }
+
+      gameId = data.id;
+      gameMode = 'multiplayer';
+      playerColor = hostColor === 'white' ? 'w' : 'b';
+      timeControlIncrement = tc.increment;
+      clockWhiteMs = tcMs;
+      clockBlackMs = tcMs;
+      turnStartedAt = nowIso;
+
+      const link = `${window.location.origin}${window.location.pathname}?room=${code}`;
+      $('share-link-input').value = link;
+
+      $('friend-time-control').classList.add('hidden');
+      $('waiting-room').classList.remove('hidden');
+
+      // ── Subscribe to this game row; auto-start when opponent joins ──
+      waitingChannel = supabase
+        .channel(`waiting:${gameId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'games',
+            filter: `id=eq.${gameId}`,
+          },
+          (payload) => {
+            const row = payload.new;
+            if (row.status === 'active' && row.white_username && row.black_username) {
+              if (row.clock_white_ms !== undefined && row.clock_white_ms !== null) clockWhiteMs = row.clock_white_ms;
+              if (row.clock_black_ms !== undefined && row.clock_black_ms !== null) clockBlackMs = row.clock_black_ms;
+              if (row.turn_started_at !== undefined && row.turn_started_at !== null) turnStartedAt = row.turn_started_at;
+              if (row.time_control_increment !== undefined && row.time_control_increment !== null) timeControlIncrement = row.time_control_increment;
+              startMultiplayerGame(row.white_username, row.black_username);
+            }
+          }
+        )
+        .subscribe();
+    });
+
+    $('copy-link-btn').addEventListener('click', async () => {
+      const linkInput = $('share-link-input');
+      try {
+        await navigator.clipboard.writeText(linkInput.value);
+        const btn = $('copy-link-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = originalText; }, 2000);
+      } catch (err) {
+        console.error('Failed to copy text: ', err);
+      }
+    });
+
+    $('cancel-waiting-btn').addEventListener('click', () => {
+      if (waitingChannel) {
+        supabase.removeChannel(waitingChannel);
+        waitingChannel = null;
+      }
+      gameId = null;
+      currentRoomCode = null;
+      gameMode = 'ai';
+      $('waiting-room').classList.add('hidden');
+      $('lobby').classList.remove('hidden');
+    });
+
+    // ─── Join Game Flow (from URL param ?room=XXXXXX) ─────────────────
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomCode = urlParams.get('room');
+
+    if (roomCode) {
+      $('lobby-default-buttons').style.display = 'none';
+      $('lobby-join-buttons').style.display = 'flex';
+      document.querySelector('#lobby .subtitle').textContent = `Join Room: ${roomCode}`;
+    }
+
+    $('join-game-btn').addEventListener('click', async () => {
+      const input = $('username-input');
+      const errorEl = $('lobby-error');
+      const name = input.value.trim();
+
+      if (!name) {
+        errorEl.textContent = 'Please enter a username.';
+        input.focus();
+        return;
+      }
+
+      playerName = name;
+      errorEl.textContent = '';
+
+      const btn = $('join-game-btn');
+      btn.disabled = true;
+      btn.textContent = 'Joining…';
+
+      // Look up the game by room code
+      currentRoomCode = roomCode;
+      const { data: game, error: fetchError } = await supabase
+        .from('games')
+        .select('id, status, white_username, black_username, host_color, time_control_minutes, time_control_increment, clock_white_ms, clock_black_ms, turn_started_at')
+        .eq('room_code', roomCode)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (fetchError || !game) {
+        btn.disabled = false;
+        btn.textContent = 'Join Game';
+        errorEl.textContent = 'Room not found. Check the link and try again.';
+        return;
+      }
+
+      if (game.status !== 'waiting') {
+        btn.disabled = false;
+        btn.textContent = 'Join Game';
+        errorEl.textContent = 'This game has already started or finished.';
+        return;
+      }
+
+      const joinerColor = game.host_color === 'white' ? 'black' : 'white';
+      const nowIso = new Date().toISOString();
+      const wMs = game.clock_white_ms ?? (game.time_control_minutes * 60000);
+      const bMs = game.clock_black_ms ?? (game.time_control_minutes * 60000);
+      
+      const updateData = {
+        status: 'active',
+        started_at: nowIso,
+        turn_started_at: nowIso,
+        clock_white_ms: wMs,
+        clock_black_ms: bMs,
+      };
+      
+      if (joinerColor === 'black') {
+        updateData.black_username = playerName;
+      } else {
+        updateData.white_username = playerName;
+      }
+
+      // Claim the remaining seat and activate the game
+      const { error: updateError } = await supabase
+        .from('games')
+        .update(updateData)
+        .eq('id', game.id);
+
+      btn.disabled = false;
+      btn.textContent = 'Join Game';
+
+      if (updateError) {
+        errorEl.textContent = 'Failed to join: ' + updateError.message;
+        return;
+      }
+
+      gameId = game.id;
+      gameMode = 'multiplayer';
+      playerColor = joinerColor === 'black' ? 'b' : 'w';
+      timeControlIncrement = game.time_control_increment || 0;
+      clockWhiteMs = wMs;
+      clockBlackMs = bMs;
+      turnStartedAt = nowIso;
+
+      const whiteUser = joinerColor === 'white' ? playerName : game.white_username;
+      const blackUser = joinerColor === 'black' ? playerName : game.black_username;
+      
+      startMultiplayerGame(whiteUser, blackUser);
+    });
+  </script>
+</body>
+
+</html>
