@@ -86,8 +86,10 @@
     .lobby-card {
       width: 100%;
       max-width: 400px;
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(10, 10, 10, 0.6);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 12px;
       padding: 40px 32px;
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
@@ -95,14 +97,6 @@
       flex-direction: column;
       align-items: center;
       gap: 28px;
-    }
-
-    .liquid-glass-supported .lobby-card {
-      background: rgba(0, 0, 0, 0.12);
-      backdrop-filter: url(#liquid-glass-filter);
-      -webkit-backdrop-filter: url(#liquid-glass-filter);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 12px 40px rgba(0, 0, 0, 0.8);
     }
 
     .lobby-card.hidden,
@@ -254,19 +248,13 @@
       flex-direction: row;
       align-items: flex-start;
       gap: 24px;
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(10, 10, 10, 0.4);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 12px;
       padding: 32px;
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
-    }
-
-    .liquid-glass-supported .glass-container {
-      background: rgba(0, 0, 0, 0.12);
-      backdrop-filter: url(#liquid-glass-filter);
-      -webkit-backdrop-filter: url(#liquid-glass-filter);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 12px 40px rgba(0, 0, 0, 0.8);
     }
 
     /* ================================================================
@@ -483,22 +471,16 @@
     #sidebar {
       width: calc(3.5 * var(--sq));
       min-height: calc(8 * var(--sq));
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: var(--bg-panel);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 8px;
       display: flex;
       flex-direction: column;
       gap: 16px;
       padding: 16px;
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
-    }
-
-    .liquid-glass-supported #sidebar {
-      background: rgba(0, 0, 0, 0.12);
-      backdrop-filter: url(#liquid-glass-filter);
-      -webkit-backdrop-filter: url(#liquid-glass-filter);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 12px 40px rgba(0, 0, 0, 0.8);
     }
 
     /* ─── Player Label ───────────────────────────────────────────── */
@@ -631,6 +613,7 @@
 
     /* ─── Sidebar Buttons ────────────────────────────────────────── */
     #pass-btn,
+    #rules-btn,
     #resign-btn,
     #offer-draw-btn,
     #accept-draw-btn,
@@ -656,6 +639,7 @@
     }
 
     #pass-btn:hover,
+    #rules-btn:hover,
     #offer-draw-btn:hover,
     #accept-draw-btn:hover,
     #decline-draw-btn:hover,
@@ -676,6 +660,7 @@
     }
 
     #pass-btn:active,
+    #rules-btn:active,
     #resign-btn:active,
     #offer-draw-btn:active,
     #accept-draw-btn:active,
@@ -687,6 +672,7 @@
     }
 
     #pass-btn:disabled,
+    #rules-btn:disabled,
     #resign-btn:disabled,
     #offer-draw-btn:disabled,
     #accept-draw-btn:disabled,
@@ -736,6 +722,84 @@
     }
 
     /* ================================================================
+         Rules Modal
+       ================================================================ */
+    .rules-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .rules-modal-overlay.active {
+      display: flex;
+    }
+
+    .rules-modal-card {
+      position: relative;
+      width: 100%;
+      max-width: 520px;
+      background: rgba(10, 10, 10, 0.6);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 40px 32px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .rules-modal-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: transparent;
+      border: none;
+      font-size: 28px;
+      line-height: 1;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+
+    .rules-modal-close:hover {
+      color: var(--text-primary);
+    }
+
+    .rules-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+      text-align: left;
+    }
+
+    .rule-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .rule-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .rule-desc {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+
+    /* ================================================================
          Responsive — stack vertically on narrow viewports
        ================================================================ */
     @media (max-width: 660px) {
@@ -757,22 +821,6 @@
 <body>
   <div class="background-overlay"></div>
 
-  <!-- Hidden SVG Filter for Liquid Glass Effect -->
-  <svg style="position: absolute; width: 0; height: 0; pointer-events: none;" aria-hidden="true">
-    <defs>
-      <filter id="liquid-glass-filter">
-        <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" result="noise" />
-        <feDisplacementMap in="SourceGraphic" in2="noise" scale="20" xChannelSelector="R" yChannelSelector="G" />
-      </filter>
-    </defs>
-  </svg>
-
-  <script>
-    if (CSS.supports('backdrop-filter', 'url("#x")')) {
-      document.documentElement.classList.add('liquid-glass-supported');
-    }
-  </script>
-
   <!-- ============================================================
        Lobby Screen
        ============================================================ -->
@@ -780,6 +828,7 @@
     <div class="brand">
       <h1 class="title">NeoChess</h1>
       <p class="subtitle">A new kind of chess</p>
+      <a href="#" id="lobby-rules-link" style="display: inline-block; margin-top: 8px; font-size: 13px; color: var(--text-muted); text-decoration: none; transition: color 0.2s ease;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">How to play &rarr;</a>
     </div>
 
     <div class="form-group">
@@ -924,7 +973,8 @@
         <div id="player-label"></div>
 
         <!-- Clock Display -->
-        <div id="clock-container" style="display: none; justify-content: space-between; margin-bottom: 4px; font-family: monospace; font-size: 1.15em; font-weight: bold; background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">
+        <div id="clock-container"
+          style="display: none; justify-content: space-between; margin-bottom: 4px; font-family: monospace; font-size: 1.15em; font-weight: bold; background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">
           <div id="clock-white" style="color: #f1f5f9;">White: 0:00</div>
           <div id="clock-black" style="color: #94a3b8;">Black: 0:00</div>
         </div>
@@ -946,6 +996,9 @@
 
         <!-- Pass Turn button -->
         <button id="pass-btn" type="button">&#10140; Pass Turn</button>
+
+        <!-- Rules button -->
+        <button id="rules-btn" type="button">&#9432; Rules</button>
 
         <!-- Resign button -->
         <button id="resign-btn" type="button" style="display: none;">&#9872; Resign</button>
@@ -1411,7 +1464,7 @@
       // Disable/enable pass button
       const passBtn = $('pass-btn');
       const resignBtn = $('resign-btn');
-      
+
       if (resignBtn) {
         resignBtn.style.display = gameMode === 'multiplayer' ? 'block' : 'none';
         resignBtn.disabled = gameResignedBy || gameDrawAgreement || gameEndReason || chess.isGameOver();
@@ -1434,7 +1487,7 @@
           acceptDrawBtn.style.display = 'none';
           declineDrawBtn.style.display = 'none';
           offerDrawBtn.style.display = 'block';
-          
+
           if (gameDrawOfferedBy === fullColor || gameDrawAgreement || gameResignedBy || gameEndReason || chess.isGameOver()) {
             offerDrawBtn.disabled = true;
           } else {
@@ -1569,13 +1622,13 @@
       container.style.display = 'flex';
       const whiteEl = $('clock-white');
       const blackEl = $('clock-black');
-      
+
       const wMs = getComputedClock('w');
       const bMs = getComputedClock('b');
 
       if (whiteEl) whiteEl.textContent = `${whitePlayerName || 'White'}: ${formatTimeMs(wMs)}`;
       if (blackEl) blackEl.textContent = `${blackPlayerName || 'Black'}: ${formatTimeMs(bMs)}`;
-      
+
       const turn = chess.turn();
       const isOver = gameEndReason || gameWinner || chess.isGameOver() || gameResignedBy || gameDrawAgreement;
       if (whiteEl) whiteEl.style.opacity = (!isOver && turn === 'w') ? '1' : '0.6';
@@ -1592,7 +1645,7 @@
         gameWinner = opponentColor;
         if (turn === 'w') clockWhiteMs = 0; else clockBlackMs = 0;
         renderSidebar();
-        
+
         await supabase.from('games').update({
           status: 'finished',
           winner: opponentColor,
@@ -1854,9 +1907,9 @@
     // ─── Resign ──────────────────────────────────────────────────────
     $('resign-btn')?.addEventListener('click', async () => {
       if (!confirm("Are you sure you want to resign? This cannot be undone.")) return;
-      
+
       const winnerColor = playerColor === 'w' ? 'black' : 'white';
-      
+
       // Update games table
       await supabase
         .from('games')
@@ -2314,7 +2367,7 @@
         turn_started_at: nowIso,
         status: 'waiting',
       };
-      
+
       if (hostColor === 'white') {
         insertData.white_username = playerName;
       } else {
@@ -2455,7 +2508,7 @@
       const nowIso = new Date().toISOString();
       const wMs = game.clock_white_ms ?? (game.time_control_minutes * 60000);
       const bMs = game.clock_black_ms ?? (game.time_control_minutes * 60000);
-      
+
       const updateData = {
         status: 'active',
         started_at: nowIso,
@@ -2463,7 +2516,7 @@
         clock_white_ms: wMs,
         clock_black_ms: bMs,
       };
-      
+
       if (joinerColor === 'black') {
         updateData.black_username = playerName;
       } else {
@@ -2494,10 +2547,72 @@
 
       const whiteUser = joinerColor === 'white' ? playerName : game.white_username;
       const blackUser = joinerColor === 'black' ? playerName : game.black_username;
-      
+
       startMultiplayerGame(whiteUser, blackUser);
+    });
+
+    // ─── Rules Modal Handlers ─────────────────────────────────────────
+    const rulesModal = $('rules-modal');
+
+    function showRules() {
+      rulesModal.classList.add('active');
+    }
+
+    function hideRules() {
+      rulesModal.classList.remove('active');
+    }
+
+    $('lobby-rules-link')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      showRules();
+    });
+
+    $('rules-btn')?.addEventListener('click', () => {
+      showRules();
+    });
+
+    $('rules-close-btn')?.addEventListener('click', () => {
+      hideRules();
+    });
+
+    rulesModal?.addEventListener('click', (e) => {
+      if (e.target === rulesModal) {
+        hideRules();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && rulesModal && rulesModal.classList.contains('active')) {
+        hideRules();
+      }
     });
   </script>
 </body>
+
+<!-- Rules Modal -->
+<div id="rules-modal" class="rules-modal-overlay">
+  <div class="rules-modal-card">
+    <button class="rules-modal-close" id="rules-close-btn">&times;</button>
+    <h2 class="title" style="margin-bottom: 8px; text-align: left; width: 100%;">NeoChess Rules</h2>
+    <div class="rules-list">
+      <div class="rule-item">
+        <div class="rule-title">1. King Capture</div>
+        <div class="rule-desc">There is no checkmate. The game ends when a king is physically captured by an opposing piece.</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-title">2. Retaliation Draw</div>
+        <div class="rule-desc">If White captures Black's king, Black gets one final move. If Black can and does capture White's king in response, the game is a draw. If Black cannot reach White's king, White wins immediately.</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-title">3. Self-Capture</div>
+        <div class="rule-desc">A piece may capture any friendly piece on a square it can legally reach. You cannot capture your own king.</div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-title">4. Pass Turn</div>
+        <div class="rule-desc">A player may pass their turn instead of moving. If both players pass 6 consecutive times (3 each), the game ends as a draw.</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 </html>
