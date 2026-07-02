@@ -620,7 +620,8 @@
     #decline-draw-btn,
     #request-rematch-btn,
     #accept-rematch-btn,
-    #decline-rematch-btn {
+    #decline-rematch-btn,
+    #overlay-lobby-btn {
       width: 100%;
       padding: 9px 0;
       background: transparent;
@@ -645,7 +646,8 @@
     #decline-draw-btn:hover,
     #request-rematch-btn:hover,
     #accept-rematch-btn:hover,
-    #decline-rematch-btn:hover {
+    #decline-rematch-btn:hover,
+    #overlay-lobby-btn:hover {
       border-color: var(--accent);
       color: var(--accent);
       background: rgba(255, 255, 255, 0.05);
@@ -797,6 +799,84 @@
       font-size: 13px;
       line-height: 1.5;
       color: var(--text-muted);
+    }
+
+    /* ================================================================
+         End Game & Color Swap Overlays
+       ================================================================ */
+    .end-game-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: calc(8 * var(--sq));
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+      border-radius: 4px;
+    }
+
+    .end-game-overlay.hidden {
+      display: none !important;
+    }
+
+    .end-game-card {
+      width: 100%;
+      max-width: 340px;
+      background: rgba(10, 10, 10, 0.65);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 32px 24px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    .score-tally-container {
+      width: 100%;
+      margin: 16px 0;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+
+    .color-swap-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: calc(8 * var(--sq));
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 120;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      border-radius: 4px;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+
+    .color-swap-overlay.hidden {
+      display: none !important;
+    }
+
+    .color-swap-text {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      font-family: 'Inter', sans-serif;
     }
 
     /* ================================================================
@@ -964,8 +1044,35 @@
         <div id="rank-labels"></div>
 
         <!-- Board grid + file labels (a → h) -->
-        <div id="board-col">
+        <div id="board-col" style="position: relative;">
           <div id="board"></div>
+
+          <!-- Color Assignment Overlay -->
+          <div id="color-swap-overlay" class="color-swap-overlay hidden">
+            <div class="color-swap-text">You are playing as White</div>
+          </div>
+
+          <!-- End Game Screen Overlay -->
+          <div id="end-game-overlay" class="end-game-overlay hidden">
+            <div class="end-game-card">
+              <h2 id="end-game-result" class="title" style="margin-bottom: 4px; text-shadow: none; font-size: 28px;">White wins!</h2>
+              <p id="end-game-reason" class="subtitle" style="color: var(--text-muted); margin-bottom: 24px; text-transform: none; letter-spacing: normal;">by resignation</p>
+              
+              <!-- Session Score Tally -->
+              <div id="end-game-tally" class="score-tally-container">
+                <!-- Computed dynamically -->
+              </div>
+
+              <!-- Rematch and Lobby Actions -->
+              <div class="overlay-actions-container" style="width: 100%; display: flex; flex-direction: column; gap: 12px; margin-top: 24px;">
+                <button id="request-rematch-btn" type="button" style="display: none;">&#8635; Request Rematch</button>
+                <button id="accept-rematch-btn" type="button" style="display: none;">&#10003; Accept Rematch</button>
+                <button id="decline-rematch-btn" type="button" style="display: none;">&#10005; Decline Rematch</button>
+                <button id="overlay-lobby-btn" type="button" class="btn btn-secondary" style="width: 100%;">Return to Lobby</button>
+              </div>
+            </div>
+          </div>
+
           <div id="file-labels"></div>
         </div>
       </div>
@@ -1010,11 +1117,6 @@
         <button id="offer-draw-btn" type="button" style="display: none;">&#9872; Offer Draw</button>
         <button id="accept-draw-btn" type="button" style="display: none;">&#10003; Accept Draw</button>
         <button id="decline-draw-btn" type="button" style="display: none;">&#10005; Decline Draw</button>
-
-        <!-- Rematch buttons -->
-        <button id="request-rematch-btn" type="button" style="display: none;">&#8635; Request Rematch</button>
-        <button id="accept-rematch-btn" type="button" style="display: none;">&#10003; Accept Rematch</button>
-        <button id="decline-rematch-btn" type="button" style="display: none;">&#10005; Decline Rematch</button>
       </div>
     </div>
   </div>
@@ -1330,6 +1432,99 @@
 
       renderCoords();
       renderSidebar();
+
+      // Show/hide End Game overlay on board
+      const isOver = gameEndReason || gameWinner || chess.isGameOver() || gameResignedBy || gameDrawAgreement;
+      const overlayEl = $('end-game-overlay');
+      if (overlayEl) {
+        if (isOver) {
+          overlayEl.classList.remove('hidden');
+          
+          let resultText = 'Draw';
+          let reasonText = 'by agreement';
+          
+          if (gameMode === 'multiplayer') {
+            if (gameWinner === 'white') {
+              resultText = 'White wins!';
+            } else if (gameWinner === 'black') {
+              resultText = 'Black wins!';
+            } else {
+              resultText = 'Draw';
+            }
+          } else {
+            // AI Mode
+            if (chess.isGameOver()) {
+              const kingResult = chess.isKingCaptured();
+              if (kingResult.captured) {
+                if (kingResult.winner === 'w') {
+                  resultText = 'White wins!';
+                } else if (kingResult.winner === 'b') {
+                  resultText = 'Black wins!';
+                } else {
+                  resultText = 'Draw';
+                }
+              } else if (chess.isStalemate()) {
+                resultText = 'Draw';
+              } else if (chess.isDraw()) {
+                resultText = 'Draw';
+              }
+            } else if (gameResignedBy) {
+              resultText = gameResignedBy === 'w' ? 'Black wins!' : 'White wins!';
+            }
+          }
+          
+          if (gameEndReason) {
+            if (gameEndReason === 'resignation') {
+              reasonText = 'by resignation';
+            } else if (gameEndReason === 'time_forfeit') {
+              reasonText = 'by time forfeit';
+            } else if (gameEndReason === 'king_capture') {
+              reasonText = 'by king capture';
+            } else if (gameEndReason === 'both_kings_captured') {
+              reasonText = 'by retaliation';
+            } else if (gameEndReason === 'draw_agreement') {
+              reasonText = 'by agreement';
+            } else if (gameEndReason === 'pass_draw') {
+              reasonText = 'by pass rule';
+            } else if (gameEndReason === 'stalemate') {
+              reasonText = 'by stalemate';
+            } else if (gameEndReason === 'draw') {
+              reasonText = 'by draw rule';
+            } else {
+              reasonText = `by ${gameEndReason}`;
+            }
+          } else if (chess.isKingCaptured().captured) {
+            const kingResult = chess.isKingCaptured();
+            if (kingResult.winner === null) {
+              reasonText = 'by retaliation';
+            } else {
+              reasonText = 'by king capture';
+            }
+          } else if (chess.isPassDraw()) {
+            reasonText = 'by pass rule';
+          } else if (chess.isStalemate()) {
+            reasonText = 'by stalemate';
+          } else if (chess.isDraw()) {
+            reasonText = 'by draw rule';
+          } else if (gameResignedBy) {
+            reasonText = 'by resignation';
+          } else if (gameDrawAgreement) {
+            reasonText = 'by agreement';
+          }
+          
+          $('end-game-result').textContent = resultText;
+          $('end-game-reason').textContent = reasonText;
+          
+          if (gameMode === 'multiplayer') {
+            $('end-game-tally').style.display = 'block';
+            updateSessionScoreTally();
+          } else {
+            $('end-game-tally').style.display = 'none';
+          }
+        } else {
+          overlayEl.classList.add('hidden');
+        }
+      }
     }
 
     // ─── Coordinate labels ────────────────────────────────────────────
@@ -1659,6 +1854,61 @@
         return true;
       }
       return false;
+    }
+
+    async function updateSessionScoreTally() {
+      if (!currentRoomCode) return;
+
+      const { data: finishedGames, error } = await supabase
+        .from('games')
+        .select('*')
+        .eq('room_code', currentRoomCode)
+        .eq('status', 'finished')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Failed to fetch session games:', error);
+        return;
+      }
+
+      let scoreWhite = 0;
+      let scoreBlack = 0;
+      const gamesCount = finishedGames ? finishedGames.length : 0;
+
+      let whiteUser = whitePlayerName || 'White';
+      let blackUser = blackPlayerName || 'Black';
+
+      if (gamesCount > 0) {
+        const firstGame = finishedGames[0];
+        if (!whitePlayerName) whiteUser = firstGame.white_username || 'White';
+        if (!blackPlayerName) blackUser = firstGame.black_username || 'Black';
+      }
+
+      if (finishedGames) {
+        finishedGames.forEach(g => {
+          if (g.winner === 'white') {
+            scoreWhite += 1;
+          } else if (g.winner === 'black') {
+            scoreBlack += 1;
+          } else if (g.status === 'finished') {
+            scoreWhite += 0.5;
+            scoreBlack += 0.5;
+          }
+        });
+      }
+
+      const tallyEl = $('end-game-tally');
+      if (tallyEl) {
+        const gameWord = gamesCount === 1 ? 'game' : 'games';
+        tallyEl.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 16px; font-family: 'Inter', sans-serif;">
+            <div style="flex: 1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 14px;" title="${whiteUser}">${whiteUser}</div>
+            <div style="font-size: 24px; font-weight: 700; color: var(--text-primary); white-space: nowrap;">${scoreWhite} &mdash; ${scoreBlack}</div>
+            <div style="flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 14px;" title="${blackUser}">${blackUser}</div>
+          </div>
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-top: 6px; text-align: center;">${gamesCount} ${gameWord}</div>
+        `;
+      }
     }
 
     function startClockInterval() {
@@ -2011,6 +2261,10 @@
       }
     });
 
+    $('overlay-lobby-btn')?.addEventListener('click', () => {
+      returnToLobby();
+    });
+
     $('decline-rematch-btn')?.addEventListener('click', async () => {
       await supabase
         .from('games')
@@ -2307,6 +2561,25 @@
     function startMultiplayerGame(whiteUsername, blackUsername) {
       whitePlayerName = whiteUsername;
       blackPlayerName = blackUsername;
+
+      // Show color assignment overlay briefly
+      const colorOverlay = $('color-swap-overlay');
+      if (colorOverlay) {
+        colorOverlay.querySelector('.color-swap-text').textContent =
+          playerColor === 'w' ? 'You are playing as White' : 'You are playing as Black';
+        colorOverlay.classList.remove('hidden');
+        colorOverlay.style.opacity = '1';
+        setTimeout(() => {
+          colorOverlay.style.opacity = '0';
+          setTimeout(() => {
+            colorOverlay.classList.add('hidden');
+          }, 500);
+        }, 1500);
+      }
+
+      // Hide end game overlay
+      const endOverlay = $('end-game-overlay');
+      if (endOverlay) endOverlay.classList.add('hidden');
 
       // Unsubscribe from the waiting channel — no longer needed
       if (waitingChannel) {
