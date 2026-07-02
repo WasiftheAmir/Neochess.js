@@ -16,22 +16,22 @@
          Design Tokens — Matches index.html exactly
        ================================================================ */
     :root {
-      --bg-base: #f0f0f0;
-      --bg-panel: rgba(255, 255, 255, 0.55);
-      --bg-surface: rgba(255, 255, 255, 0.3);
-      --accent: #000000;
-      --accent-dim: #444444;
-      --accent-glow: rgba(0, 0, 0, 0.12);
-      --text-primary: #0a0a0a;
-      --text-muted: #555555;
-      --border: rgba(0, 0, 0, 0.12);
-      --sq-light: #4a5060;
-      --sq-dark: #2a2d33;
-      --sq-selected: rgba(0, 0, 0, 0.25);
-      --sq-legal: rgba(0, 0, 0, 0.15);
-      --sq-lastmove: rgba(0, 0, 0, 0.08);
+      --bg-base: #000000;
+      --bg-panel: rgba(10, 10, 10, 0.6);
+      --bg-surface: #121212;
+      --accent: #ffffff;
+      --accent-dim: #a1a1a1;
+      --accent-glow: rgba(255, 255, 255, 0.15);
+      --text-primary: #ffffff;
+      --text-muted: #888888;
+      --border: #262626;
+      --sq-light: #eaeaea;
+      --sq-dark: #242424;
+      --sq-selected: rgba(255, 255, 255, 0.35);
+      --sq-legal: rgba(255, 255, 255, 0.2);
+      --sq-lastmove: rgba(255, 255, 255, 0.12);
       --piece-white: #ffffff;
-      --piece-black: #0a0a0a;
+      --piece-black: #000000;
 
       /* Square size: scales to fill up ~80% of viewport height/width */
       --sq: min(92px, 9.2vh, 6.2vw);
@@ -76,7 +76,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(0, 0, 0, 0.70);
       z-index: -1;
     }
 
@@ -86,13 +86,13 @@
     .lobby-card {
       width: 100%;
       max-width: 400px;
-      background: rgba(255, 255, 255, 0.45);
+      background: rgba(10, 10, 10, 0.6);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--border);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 12px;
       padding: 40px 32px;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -248,13 +248,13 @@
       flex-direction: row;
       align-items: flex-start;
       gap: 24px;
-      background: rgba(255, 255, 255, 0.45);
+      background: rgba(10, 10, 10, 0.4);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--border);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 12px;
       padding: 32px;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
     }
 
     /* ================================================================
@@ -471,10 +471,10 @@
     #sidebar {
       width: calc(3.5 * var(--sq));
       min-height: calc(8 * var(--sq));
-      background: rgba(255, 255, 255, 0.45);
+      background: var(--bg-panel);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--border);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 8px;
       display: flex;
       flex-direction: column;
@@ -728,7 +728,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(0, 0, 0, 0.7);
       z-index: 1000;
       align-items: center;
       justify-content: center;
@@ -743,10 +743,10 @@
       position: relative;
       width: 100%;
       max-width: 520px;
-      background: rgba(255, 255, 255, 0.45);
+      background: rgba(10, 10, 10, 0.6);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--border);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 12px;
       padding: 40px 32px;
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
@@ -828,7 +828,10 @@
     <div class="brand">
       <h1 class="title">NeoChess</h1>
       <p class="subtitle">A new kind of chess</p>
-      <a href="#" id="lobby-rules-link" style="display: inline-block; margin-top: 8px; font-size: 13px; color: var(--text-muted); text-decoration: none; transition: color 0.2s ease;" onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">How to play &rarr;</a>
+      <a href="#" id="lobby-rules-link"
+        style="display: inline-block; margin-top: 8px; font-size: 13px; color: var(--text-muted); text-decoration: none; transition: color 0.2s ease;"
+        onmouseover="this.style.color='var(--text-primary)'" onmouseout="this.style.color='var(--text-muted)'">How to
+        play &rarr;</a>
     </div>
 
     <div class="form-group">
@@ -2597,19 +2600,24 @@
     <div class="rules-list">
       <div class="rule-item">
         <div class="rule-title">1. King Capture</div>
-        <div class="rule-desc">There is no checkmate. The game ends when a king is physically captured by an opposing piece.</div>
+        <div class="rule-desc">There is no checkmate. The game ends when a king is physically captured by an opposing
+          piece.</div>
       </div>
       <div class="rule-item">
         <div class="rule-title">2. Retaliation Draw</div>
-        <div class="rule-desc">If White captures Black's king, Black gets one final move. If Black can and does capture White's king in response, the game is a draw. If Black cannot reach White's king, White wins immediately.</div>
+        <div class="rule-desc">If White captures Black's king, Black gets one final move. If Black can and does capture
+          White's king in response, the game is a draw. If Black cannot reach White's king, White wins immediately.
+        </div>
       </div>
       <div class="rule-item">
         <div class="rule-title">3. Self-Capture</div>
-        <div class="rule-desc">A piece may capture any friendly piece on a square it can legally reach. You cannot capture your own king.</div>
+        <div class="rule-desc">A piece may capture any friendly piece on a square it can legally reach. You cannot
+          capture your own king.</div>
       </div>
       <div class="rule-item">
         <div class="rule-title">4. Pass Turn</div>
-        <div class="rule-desc">A player may pass their turn instead of moving. If both players pass 6 consecutive times (3 each), the game ends as a draw.</div>
+        <div class="rule-desc">A player may pass their turn instead of moving. If both players pass 6 consecutive times
+          (3 each), the game ends as a draw.</div>
       </div>
     </div>
   </div>
