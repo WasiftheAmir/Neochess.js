@@ -16,22 +16,22 @@
          Design Tokens — Matches index.html exactly
        ================================================================ */
     :root {
-      --bg-base: #000000;
-      --bg-panel: rgba(10, 10, 10, 0.6);
-      --bg-surface: #121212;
-      --accent: #ffffff;
-      --accent-dim: #a1a1a1;
-      --accent-glow: rgba(255, 255, 255, 0.15);
-      --text-primary: #ffffff;
-      --text-muted: #888888;
-      --border: #262626;
-      --sq-light: #eaeaea;
-      --sq-dark: #242424;
-      --sq-selected: rgba(255, 255, 255, 0.35);
-      --sq-legal: rgba(255, 255, 255, 0.2);
-      --sq-lastmove: rgba(255, 255, 255, 0.12);
+      --bg-base: #f0f0f0;
+      --bg-panel: rgba(255, 255, 255, 0.55);
+      --bg-surface: rgba(255, 255, 255, 0.3);
+      --accent: #000000;
+      --accent-dim: #444444;
+      --accent-glow: rgba(0, 0, 0, 0.12);
+      --text-primary: #0a0a0a;
+      --text-muted: #555555;
+      --border: rgba(0, 0, 0, 0.12);
+      --sq-light: #4a5060;
+      --sq-dark: #2a2d33;
+      --sq-selected: rgba(0, 0, 0, 0.25);
+      --sq-legal: rgba(0, 0, 0, 0.15);
+      --sq-lastmove: rgba(0, 0, 0, 0.08);
       --piece-white: #ffffff;
-      --piece-black: #000000;
+      --piece-black: #0a0a0a;
 
       /* Square size: scales to fill up ~80% of viewport height/width */
       --sq: min(92px, 9.2vh, 6.2vw);
@@ -76,7 +76,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(0, 0, 0, 0.70);
+      background: rgba(255, 255, 255, 0.15);
       z-index: -1;
     }
 
@@ -86,13 +86,13 @@
     .lobby-card {
       width: 100%;
       max-width: 400px;
-      background: rgba(10, 10, 10, 0.6);
+      background: rgba(255, 255, 255, 0.45);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 40px 32px;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -248,13 +248,13 @@
       flex-direction: row;
       align-items: flex-start;
       gap: 24px;
-      background: rgba(10, 10, 10, 0.4);
+      background: rgba(255, 255, 255, 0.45);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 32px;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
     }
 
     /* ================================================================
@@ -471,10 +471,10 @@
     #sidebar {
       width: calc(3.5 * var(--sq));
       min-height: calc(8 * var(--sq));
-      background: var(--bg-panel);
+      background: rgba(255, 255, 255, 0.45);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
       border-radius: 8px;
       display: flex;
       flex-direction: column;
@@ -728,7 +728,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(255, 255, 255, 0.15);
       z-index: 1000;
       align-items: center;
       justify-content: center;
@@ -743,10 +743,10 @@
       position: relative;
       width: 100%;
       max-width: 520px;
-      background: rgba(10, 10, 10, 0.6);
+      background: rgba(255, 255, 255, 0.45);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 40px 32px;
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
