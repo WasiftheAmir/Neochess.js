@@ -1,6 +1,6 @@
 export default {
-  input: 'src/pgn.peggy',
-  output: 'src/pgn.js',
+  input: 'engine/pgn.peggy',
+  output: 'engine/pgn.js',
   format: 'es',
   dts: true,
   allowedStartRules: ['pgn'],

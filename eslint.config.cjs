@@ -13,7 +13,7 @@ const compat = new FlatCompat({
 })
 
 module.exports = defineConfig([
-  { ignores: ['src/pgn.js', 'src/pgn.d.ts'] },
+  { ignores: ['engine/pgn.js', 'engine/pgn.d.ts'] },
   {
     languageOptions: {
       parser: tsParser,

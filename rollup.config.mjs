@@ -4,7 +4,7 @@ import { dts } from 'rollup-plugin-dts'
 
 export default [
   {
-    input: 'src/chess.ts',
+    input: 'engine/chess.ts',
     output: {
       file: 'dist/cjs/chess.js',
       format: 'cjs',
@@ -19,7 +19,7 @@ export default [
     ],
   },
   {
-    input: 'src/chess.ts',
+    input: 'engine/chess.ts',
     output: {
       file: 'dist/esm/chess.js',
       format: 'esm',
@@ -34,7 +34,7 @@ export default [
     ],
   },
   {
-    input: 'src/chess.ts',
+    input: 'engine/chess.ts',
     output: {
       file: 'dist/types/chess.d.ts',
       format: 'es',
