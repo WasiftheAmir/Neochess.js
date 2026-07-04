@@ -1,0 +1,64 @@
+.waitingStatus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.waitingText {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.pulseDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  animation: pulse-dot 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+  margin-top: -8px;
+}
+
+.linkRow {
+  width: 100%;
+}
+
+.linkLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.linkInputRow {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.linkInput {
+  flex: 1;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 12px !important;
+  text-overflow: ellipsis;
+  background: rgba(255,255,255,0.02) !important;
+  cursor: text;
+}
+
+.copyBtn {
+  flex: 0 0 80px;
+  padding: 0 !important;
+  font-size: 13px;
+}

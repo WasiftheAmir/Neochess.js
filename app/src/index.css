@@ -1,0 +1,76 @@
+/* ================================================================
+   NeoChess — Global CSS Design Tokens & Base Styles
+   ================================================================ */
+
+/* ── Google Fonts are loaded in index.html ── */
+
+:root {
+  --bg-base: #000000;
+  --bg-panel: rgba(10, 10, 10, 0.65);
+  --bg-surface: #121212;
+  --accent: #ffffff;
+  --accent-dim: #a1a1a1;
+  --accent-glow: rgba(255, 255, 255, 0.15);
+  --text-primary: #ffffff;
+  --text-muted: #888888;
+  --border: #262626;
+  --sq-light: #eaeaea;
+  --sq-dark: #242424;
+  --sq-selected: rgba(56, 189, 248, 0.45);
+  --sq-legal: rgba(255, 255, 255, 0.2);
+  --sq-lastmove: rgba(56, 189, 248, 0.18);
+  --sq: clamp(44px, min(9.2vh, 6.2vw), 92px);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  min-height: 100vh;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+/* ── Utility ── */
+button { font-family: 'Inter', system-ui, sans-serif; }
+select { font-family: 'Inter', system-ui, sans-serif; }
+
+/* ── Keyframes ── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes self-capture-pulse {
+  from { box-shadow: inset 0 0 0 3px rgba(251, 191, 36, 0.5); }
+  to   { box-shadow: inset 0 0 0 3px rgba(251, 191, 36, 1); }
+}
+
+@keyframes color-fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes waiting-spin {
+  to { transform: rotate(360deg); }
+}
