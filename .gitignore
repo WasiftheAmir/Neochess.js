@@ -1,8 +1,7 @@
 node_modules/
 coverage/
 dist/
-ui/dist-react/
 temp/
 
-engine/pgn.js
-engine/pgn.d.ts
+src/pgn.js
+src/pgn.d.ts
