@@ -96,7 +96,7 @@ export default function TimeControlScreen({ playerName, onBack, onCreateChalleng
   };
 
   return (
-    <div>
+    <div className={styles.inner}>
       {/* Brand */}
       <div className={styles.brand}>
         <h1 className={styles.title}>NeoChess</h1>

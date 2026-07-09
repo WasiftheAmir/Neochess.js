@@ -72,7 +72,7 @@ export default function WaitingRoomScreen({ gameState, onGameStart, onCancel }: 
   };
 
   return (
-    <div>
+    <div className={styles.inner}>
       <div className={styles.brand}>
         <h1 className={styles.title}>NeoChess</h1>
         <p className={styles.subtitle}>Play a Friend</p>
