@@ -48,7 +48,7 @@ export default function GameScreen({
   const [legalTargets, setLegalTargets] = useState<string[]>([]);
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
   const [pendingSelfCaptureSq, setPendingSelfCaptureSq] = useState<string | null>(null);
-  const [premove, setPremove] = useState<{ from: string; to: string } | null>(null);
+  const [premoves, setPremoves] = useState<Array<{ from: string; to: string }>>([]);
 
   // AI state
   const [aiThinking, setAiThinking] = useState(false);
@@ -373,7 +373,6 @@ export default function GameScreen({
     setSelectedSq(null);
     setLegalTargets([]);
     setPendingSelfCaptureSq(null);
-    setPremove(null);
     refresh();
 
     // ── Persist in multiplayer ─────────────────────────────────────────────
@@ -493,9 +492,40 @@ export default function GameScreen({
     }
   }, [chess, stockfish, refresh]);
 
-  // ─── Auto-execute Premove when turn switches to player ────────────────────
+  // Helper to simulate current real board + premove chain so far
+  const getSimulatedBoard = useCallback((premovesList: Array<{ from: string; to: string }>, myColor: 'w' | 'b') => {
+    const sim = new Chess(chess.fen());
+    for (const pm of premovesList) {
+      const fenParts = sim.fen().split(' ');
+      fenParts[1] = myColor;
+      sim.load(fenParts.join(' '));
+      try {
+        sim.move({ from: pm.from, to: pm.to, promotion: 'q' });
+      } catch {}
+    }
+    const fenParts = sim.fen().split(' ');
+    fenParts[1] = myColor;
+    sim.load(fenParts.join(' '));
+    return sim;
+  }, [chess]);
+
+  const tryQueuePremove = useCallback((fromSq: string, toSq: string, myColor: 'w' | 'b') => {
+    setPremoves((prev) => {
+      const sim = getSimulatedBoard(prev, myColor);
+      const legalMoves = (
+        sim.moves({ square: fromSq, verbose: true }) as Array<{ to: string }>
+      ).map((m) => m.to);
+
+      if (legalMoves.includes(toSq)) {
+        return [...prev, { from: fromSq, to: toSq }];
+      }
+      return prev;
+    });
+  }, [getSimulatedBoard]);
+
+  // ─── Auto-execute Premoves chain when turn switches to player ─────────────
   useEffect(() => {
-    if (isGameOver() || !premove) return;
+    if (isGameOver() || premoves.length === 0) return;
     const myColor = gameState.mode === 'ai' ? 'w' : gameState.playerColor;
     const currentTurn = chess.turn() as 'w' | 'b';
     const isNowMyTurn =
@@ -504,16 +534,20 @@ export default function GameScreen({
         : currentTurn === myColor;
 
     if (isNowMyTurn) {
-      const { from, to } = premove;
-      setPremove(null);
+      const nextPremove = premoves[0];
       const targets = (
-        chess.moves({ square: from, verbose: true }) as Array<{ to: string }>
+        chess.moves({ square: nextPremove.from, verbose: true }) as Array<{ to: string }>
       ).map((m) => m.to);
-      if (targets.includes(to)) {
-        executeMove(from, to);
+
+      if (targets.includes(nextPremove.to)) {
+        setPremoves((prev) => prev.slice(1));
+        executeMove(nextPremove.from, nextPremove.to);
+      } else {
+        // If any premove in the chain becomes illegal, terminate chain and return control to user
+        setPremoves([]);
       }
     }
-  }, [chess, premove, isGameOver, gameState.mode, gameState.playerColor, aiThinking, executeMove]);
+  }, [chess, premoves, isGameOver, gameState.mode, gameState.playerColor, aiThinking, executeMove]);
 
   // ─── Click-to-move handler ────────────────────────────────────────────────
   const handleSquareClick = useCallback((sq: string) => {
@@ -525,10 +559,11 @@ export default function GameScreen({
         ? !aiThinking && currentTurn === 'w'
         : currentTurn === myColor;
 
-    const targetPiece = chess.get(sq) as { color: 'w' | 'b'; type: string } | null;
-    const isMyPiece = targetPiece && targetPiece.color === myColor;
-
     if (!isMyTurn) {
+      const sim = getSimulatedBoard(premoves, myColor);
+      const targetPiece = sim.get(sq) as { color: 'w' | 'b'; type: string } | null;
+      const isMyPiece = targetPiece && targetPiece.color === myColor;
+
       if (selectedSq) {
         if (selectedSq === sq) {
           setSelectedSq(null);
@@ -537,7 +572,7 @@ export default function GameScreen({
         }
         if (requireDoubleClickSelfCapture && isMyPiece) {
           if (pendingSelfCaptureSq === sq) {
-            setPremove({ from: selectedSq, to: sq });
+            tryQueuePremove(selectedSq, sq, myColor);
             setSelectedSq(null);
             setPendingSelfCaptureSq(null);
           } else {
@@ -545,7 +580,7 @@ export default function GameScreen({
           }
           return;
         }
-        setPremove({ from: selectedSq, to: sq });
+        tryQueuePremove(selectedSq, sq, myColor);
         setSelectedSq(null);
         setPendingSelfCaptureSq(null);
         return;
@@ -558,11 +593,13 @@ export default function GameScreen({
       return;
     }
 
+    const targetPiece = chess.get(sq) as { color: 'w' | 'b'; type: string } | null;
     const isFriendly = targetPiece && targetPiece.color === currentTurn;
 
     if (selectedSq && legalTargets.includes(sq)) {
       if (requireDoubleClickSelfCapture && isFriendly) {
         if (pendingSelfCaptureSq === sq) {
+          setPremoves([]);
           executeMove(selectedSq, sq);
         } else {
           setPendingSelfCaptureSq(sq);
@@ -570,6 +607,7 @@ export default function GameScreen({
         return;
       }
       setPendingSelfCaptureSq(null);
+      setPremoves([]);
       executeMove(selectedSq, sq);
       return;
     }
@@ -586,13 +624,13 @@ export default function GameScreen({
     setSelectedSq(null);
     setLegalTargets([]);
     setPendingSelfCaptureSq(null);
-  }, [chess, isGameOver, gameState, aiThinking, selectedSq, legalTargets, pendingSelfCaptureSq, requireDoubleClickSelfCapture, executeMove]);
+  }, [chess, isGameOver, gameState, aiThinking, selectedSq, legalTargets, pendingSelfCaptureSq, requireDoubleClickSelfCapture, premoves, getSimulatedBoard, tryQueuePremove, executeMove]);
 
   const handleCancelSelection = useCallback(() => {
     setSelectedSq(null);
     setLegalTargets([]);
     setPendingSelfCaptureSq(null);
-    setPremove(null);
+    setPremoves([]);
   }, []);
 
   // ─── Drag handler ─────────────────────────────────────────────────────────
@@ -605,15 +643,16 @@ export default function GameScreen({
         ? !aiThinking && currentTurn === 'w'
         : currentTurn === myColor;
 
-    const piece = chess.get(from) as { color: 'w' | 'b' } | null;
-    if (!piece || piece.color !== myColor) return;
-
     if (!isMyTurn) {
-      const targetPiece = chess.get(to) as { color: 'w' | 'b' } | null;
+      const sim = getSimulatedBoard(premoves, myColor);
+      const piece = sim.get(from) as { color: 'w' | 'b' } | null;
+      if (!piece || piece.color !== myColor) return;
+
+      const targetPiece = sim.get(to) as { color: 'w' | 'b' } | null;
       const isFriendlyTarget = targetPiece && targetPiece.color === myColor;
       if (requireDoubleClickSelfCapture && isFriendlyTarget) {
         if (pendingSelfCaptureSq === to && selectedSq === from) {
-          setPremove({ from, to });
+          tryQueuePremove(from, to, myColor);
           setSelectedSq(null);
           setPendingSelfCaptureSq(null);
         } else {
@@ -622,11 +661,14 @@ export default function GameScreen({
         }
         return;
       }
-      setPremove({ from, to });
+      tryQueuePremove(from, to, myColor);
       setSelectedSq(null);
       setPendingSelfCaptureSq(null);
       return;
     }
+
+    const piece = chess.get(from) as { color: 'w' | 'b' } | null;
+    if (!piece || piece.color !== myColor) return;
 
     const targets = (chess.moves({ square: from, verbose: true }) as Array<{ to: string }>).map((m) => m.to);
     if (targets.includes(to)) {
@@ -634,6 +676,7 @@ export default function GameScreen({
       const isFriendly = targetPiece && targetPiece.color === piece.color;
       if (requireDoubleClickSelfCapture && isFriendly) {
         if (pendingSelfCaptureSq === to && selectedSq === from) {
+          setPremoves([]);
           executeMove(from, to);
         } else {
           setSelectedSq(from);
@@ -643,18 +686,30 @@ export default function GameScreen({
         return;
       }
       setPendingSelfCaptureSq(null);
+      setPremoves([]);
       executeMove(from, to);
     }
-  }, [chess, isGameOver, gameState, aiThinking, requireDoubleClickSelfCapture, pendingSelfCaptureSq, selectedSq, executeMove]);
+  }, [chess, isGameOver, gameState, aiThinking, requireDoubleClickSelfCapture, pendingSelfCaptureSq, selectedSq, premoves, getSimulatedBoard, tryQueuePremove, executeMove]);
 
   // ─── canInteract helper ───────────────────────────────────────────────────
   const canInteract = useCallback((sq: string): boolean => {
     if (isGameOver()) return false;
-    const piece = chess.get(sq) as { color: 'w' | 'b' } | null;
-    if (!piece) return false;
     const myColor = gameState.mode === 'ai' ? 'w' : gameState.playerColor;
-    return piece.color === myColor;
-  }, [chess, isGameOver, gameState]);
+    const currentTurn = chess.turn() as 'w' | 'b';
+    const isMyTurn =
+      gameState.mode === 'ai'
+        ? !aiThinking && currentTurn === 'w'
+        : currentTurn === myColor;
+
+    if (!isMyTurn) {
+      const sim = getSimulatedBoard(premoves, myColor);
+      const piece = sim.get(sq) as { color: 'w' | 'b' } | null;
+      return piece ? piece.color === myColor : false;
+    }
+
+    const piece = chess.get(sq) as { color: 'w' | 'b' } | null;
+    return piece ? piece.color === myColor : false;
+  }, [chess, isGameOver, gameState, aiThinking, premoves, getSimulatedBoard]);
 
   // ─── Pass turn ────────────────────────────────────────────────────────────
   const handlePass = useCallback(async () => {
@@ -939,7 +994,7 @@ export default function GameScreen({
             onDrop={handleDrop}
             onCancelDrag={handleCancelSelection}
             currentTurn={chess.turn() as 'w' | 'b'}
-            premove={premove}
+            premoves={premoves}
           />
 
           {/* Color assignment brief overlay */}

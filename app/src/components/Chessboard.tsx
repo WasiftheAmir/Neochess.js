@@ -30,7 +30,7 @@ interface Props {
   onDrop: (from: string, to: string) => void;
   onCancelDrag?: () => void;
   currentTurn: 'w' | 'b';
-  premove?: { from: string; to: string } | null;
+  premoves?: Array<{ from: string; to: string }>;
 }
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -48,7 +48,7 @@ export default function Chessboard({
   onDrop,
   onCancelDrag,
   currentTurn,
-  premove = null,
+  premoves = [],
 }: Props) {
   const [dragOverSq, setDragOverSq] = useState<string | null>(null);
   const [draggingPiece, setDraggingPiece] = useState<{
@@ -228,7 +228,7 @@ export default function Chessboard({
               const isLegal = legalTargets.includes(sq);
               const isPending = sq === pendingSelfCaptureSq;
               const isDragOver = sq === dragOverSq;
-              const isPremove = !!(premove && (sq === premove.from || sq === premove.to));
+              const isPremove = premoves.some((pm) => pm.from === sq || pm.to === sq);
               const hasPiece = !!piece;
 
               const allowDrag = piece ? canInteract(sq) : false;
