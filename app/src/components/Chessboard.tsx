@@ -28,6 +28,7 @@ interface Props {
   canInteract: (sq: string) => boolean;
   onSquareClick: (sq: string) => void;
   onDrop: (from: string, to: string) => void;
+  onCancelDrag?: () => void;
   currentTurn: 'w' | 'b';
 }
 
@@ -44,6 +45,7 @@ export default function Chessboard({
   canInteract,
   onSquareClick,
   onDrop,
+  onCancelDrag,
   currentTurn,
 }: Props) {
   const [dragOverSq, setDragOverSq] = useState<string | null>(null);
@@ -71,7 +73,8 @@ export default function Chessboard({
     setDraggingPiece(null);
     setDragOverSq(null);
     pointerDownRef.current = null;
-  }, []);
+    onCancelDrag?.();
+  }, [onCancelDrag]);
 
   useEffect(() => {
     const handlePointerMove = (e: PointerEvent) => {

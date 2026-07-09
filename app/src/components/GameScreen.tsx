@@ -527,6 +527,12 @@ export default function GameScreen({ initialGameState, onReturnToLobby, onRules 
     setPendingSelfCaptureSq(null);
   }, [chess, isGameOver, gameState, aiThinking, selectedSq, legalTargets, pendingSelfCaptureSq, executeMove]);
 
+  const handleCancelSelection = useCallback(() => {
+    setSelectedSq(null);
+    setLegalTargets([]);
+    setPendingSelfCaptureSq(null);
+  }, []);
+
   // ─── Drag handler ─────────────────────────────────────────────────────────
   const handleDrop = useCallback((from: string, to: string) => {
     if (isGameOver()) return;
@@ -826,6 +832,7 @@ export default function GameScreen({ initialGameState, onReturnToLobby, onRules 
             canInteract={canInteract}
             onSquareClick={handleSquareClick}
             onDrop={handleDrop}
+            onCancelDrag={handleCancelSelection}
             currentTurn={chess.turn() as 'w' | 'b'}
           />
 
