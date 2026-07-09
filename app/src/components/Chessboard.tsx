@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './Chessboard.module.css';
 
 // Cburnett SVG piece set from Lichess
@@ -46,54 +46,162 @@ export default function Chessboard({
   onDrop,
   currentTurn,
 }: Props) {
-  const dragFromRef = useRef<string | null>(null);
   const [dragOverSq, setDragOverSq] = useState<string | null>(null);
+  const [draggingPiece, setDraggingPiece] = useState<{
+    sq: string;
+    piece: ChessPiece;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const pointerDownRef = useRef<{
+    sq: string;
+    piece: ChessPiece;
+    startX: number;
+    startY: number;
+    isDragging: boolean;
+  } | null>(null);
+
+  const justDraggedRef = useRef<boolean>(false);
 
   const ranks = flipped ? [...RANKS] : [...RANKS].reverse();
   const files = flipped ? [...FILES].reverse() : [...FILES];
 
-  const handleDragStart = useCallback(
-    (e: React.DragEvent, sq: string) => {
-      dragFromRef.current = sq;
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', sq);
-    },
-    []
-  );
-
-  const handleDragOver = useCallback(
-    (e: React.DragEvent, sq: string) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      setDragOverSq(sq);
-    },
-    []
-  );
-
-  const handleDragLeave = useCallback(() => {
+  const cancelDrag = useCallback(() => {
+    setDraggingPiece(null);
     setDragOverSq(null);
+    pointerDownRef.current = null;
   }, []);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent, toSq: string) => {
-      e.preventDefault();
-      setDragOverSq(null);
-      const fromSq = e.dataTransfer.getData('text/plain') || dragFromRef.current;
-      if (fromSq && fromSq !== toSq) {
-        onDrop(fromSq, toSq);
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      const data = pointerDownRef.current;
+      if (!data) return;
+
+      const dx = e.clientX - data.startX;
+      const dy = e.clientY - data.startY;
+
+      if (!data.isDragging) {
+        if (Math.hypot(dx, dy) > 4) {
+          data.isDragging = true;
+          onSquareClick(data.sq);
+          setDraggingPiece({
+            sq: data.sq,
+            piece: data.piece,
+            x: e.clientX,
+            y: e.clientY,
+          });
+        }
+      } else {
+        setDraggingPiece((prev) =>
+          prev ? { ...prev, x: e.clientX, y: e.clientY } : null
+        );
+
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        const sqEl = el?.closest('[data-sq]');
+        const overSq = sqEl?.getAttribute('data-sq') || null;
+        setDragOverSq(overSq);
       }
-      dragFromRef.current = null;
-    },
-    [onDrop]
-  );
+    };
 
-  const handleDragEnd = useCallback(() => {
-    setDragOverSq(null);
-    dragFromRef.current = null;
-  }, []);
+    const handlePointerUp = (e: PointerEvent) => {
+      const data = pointerDownRef.current;
+      if (!data) return;
+
+      if (e.button === 2) {
+        cancelDrag();
+        return;
+      }
+
+      pointerDownRef.current = null;
+
+      if (data.isDragging) {
+        justDraggedRef.current = true;
+        setTimeout(() => {
+          justDraggedRef.current = false;
+        }, 50);
+
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        const sqEl = el?.closest('[data-sq]');
+        const overSq = sqEl?.getAttribute('data-sq') || null;
+
+        setDraggingPiece(null);
+        setDragOverSq(null);
+
+        if (overSq && overSq !== data.sq) {
+          onDrop(data.sq, overSq);
+        }
+      } else {
+        setDraggingPiece(null);
+        setDragOverSq(null);
+        onSquareClick(data.sq);
+      }
+    };
+
+    const handleRightClickDown = (e: MouseEvent | PointerEvent) => {
+      if (e.button === 2) {
+        cancelDrag();
+      }
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      cancelDrag();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        cancelDrag();
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', cancelDrag);
+    window.addEventListener('pointerdown', handleRightClickDown, true);
+    window.addEventListener('mousedown', handleRightClickDown, true);
+    window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', cancelDrag);
+      window.removeEventListener('pointerdown', handleRightClickDown, true);
+      window.removeEventListener('mousedown', handleRightClickDown, true);
+      window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [cancelDrag, onDrop, onSquareClick]);
+
+  const handlePiecePointerDown = useCallback(
+    (e: React.PointerEvent, sq: string, piece: ChessPiece, allowDrag: boolean) => {
+      if (e.button === 2) {
+        e.preventDefault();
+        cancelDrag();
+        return;
+      }
+      if (e.button !== 0 || !allowDrag) return;
+      e.preventDefault();
+      pointerDownRef.current = {
+        sq,
+        piece,
+        startX: e.clientX,
+        startY: e.clientY,
+        isDragging: false,
+      };
+    },
+    [cancelDrag]
+  );
 
   return (
-    <div className={styles.boardWrapper}>
+    <div
+      className={styles.boardWrapper}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        cancelDrag();
+      }}
+    >
       {/* Rank labels */}
       <div className={styles.rankLabels}>
         {ranks.map((rank) => (
@@ -138,11 +246,15 @@ export default function Chessboard({
                   key={sq}
                   className={squareClass}
                   data-sq={sq}
-                  onClick={() => onSquareClick(sq)}
-                  onDragOver={(e) => handleDragOver(e, sq)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, sq)}
-                  onContextMenu={(e) => e.preventDefault()}
+                  onClick={() => {
+                    if (!justDraggedRef.current) {
+                      onSquareClick(sq);
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    cancelDrag();
+                  }}
                 >
                   {/* Legal move indicator */}
                   {isLegal && (
@@ -157,9 +269,13 @@ export default function Chessboard({
                       className={`${styles.piece} ${allowDrag ? styles.draggable : ''}`}
                       src={pieceUrl(piece.color, piece.type)}
                       alt={`${piece.color === 'w' ? 'White' : 'Black'} ${piece.type}`}
-                      draggable={allowDrag}
-                      onDragStart={allowDrag ? (e) => handleDragStart(e, sq) : undefined}
-                      onDragEnd={allowDrag ? handleDragEnd : undefined}
+                      draggable={false}
+                      onPointerDown={(e) =>
+                        handlePiecePointerDown(e, sq, piece, allowDrag)
+                      }
+                      style={{
+                        opacity: draggingPiece?.sq === sq ? 0 : 1,
+                      }}
                     />
                   )}
                 </div>
@@ -177,6 +293,20 @@ export default function Chessboard({
           ))}
         </div>
       </div>
+
+      {/* Floating piece while dragging */}
+      {draggingPiece && (
+        <img
+          src={pieceUrl(draggingPiece.piece.color, draggingPiece.piece.type)}
+          alt="Dragging piece"
+          className={styles.floatingPiece}
+          style={{
+            left: draggingPiece.x,
+            top: draggingPiece.y,
+          }}
+        />
+      )}
     </div>
   );
 }
+
