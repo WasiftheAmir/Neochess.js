@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import GlassCard from './GlassCard';
+import { useState } from 'react';
 import { supabase } from '../supabase';
-import { PlayerColor, TimeControl } from '../types';
+import type { PlayerColor, TimeControl } from '../types';
 import styles from './LobbyScreen.module.css';
 import tcStyles from './TimeControlScreen.module.css';
 
@@ -97,7 +96,7 @@ export default function TimeControlScreen({ playerName, onBack, onCreateChalleng
   };
 
   return (
-    <GlassCard>
+    <div>
       {/* Brand */}
       <div className={styles.brand}>
         <h1 className={styles.title}>NeoChess</h1>
@@ -198,6 +197,6 @@ export default function TimeControlScreen({ playerName, onBack, onCreateChalleng
           Back
         </button>
       </div>
-    </GlassCard>
+    </div>
   );
 }

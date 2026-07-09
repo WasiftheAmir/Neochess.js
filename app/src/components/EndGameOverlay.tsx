@@ -53,12 +53,15 @@ export default function EndGameOverlay({
       transition={{ duration: 0.3 }}
     >
       <motion.div
-        className={styles.card}
+        className={`liquid-glass ${styles.card}`}
         initial={{ scale: 0.88, opacity: 0, y: 16 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.88, opacity: 0, y: 16 }}
         transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
       >
+        {/* Cloned backdrop image layer for organic glass refraction */}
+        <div className="liquid-glass-bg liquid-glass-bg-game" />
+
         <h2 className={styles.resultText}>{result}</h2>
         <p className={styles.reasonText}>{reason}</p>
 

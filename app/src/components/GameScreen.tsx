@@ -809,7 +809,11 @@ export default function GameScreen({ initialGameState, onReturnToLobby, onRules 
 
   return (
     <div className={styles.container}>
-      <div className={styles.glassContainer}>
+      {/* ── Board Card ── */}
+      <div className={`liquid-glass ${styles.boardCard}`}>
+        {/* Cloned backdrop image layer for organic glass refraction */}
+        <div className="liquid-glass-bg liquid-glass-bg-game" />
+
         {/* ── Board + overlays ── */}
         <div className={styles.boardArea} style={{ position: 'relative' }}>
           <Chessboard
@@ -852,6 +856,12 @@ export default function GameScreen({ initialGameState, onReturnToLobby, onRules 
             )}
           </AnimatePresence>
         </div>
+      </div>
+
+      {/* ── Sidebar Card ── */}
+      <div className={`liquid-glass ${styles.sidebarCard}`}>
+        {/* Cloned backdrop image layer for organic glass refraction */}
+        <div className="liquid-glass-bg liquid-glass-bg-game" />
 
         {/* ── Sidebar ── */}
         <GameSidebar

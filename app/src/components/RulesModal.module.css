@@ -13,13 +13,8 @@
   position: relative;
   width: 100%;
   max-width: 520px;
-  background: rgba(10, 10, 10, 0.75);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  /* Glass chrome comes from global .liquid-glass class */
   padding: 40px 36px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.9);
   display: flex;
   flex-direction: column;
   gap: 20px;

@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, LayoutGroup } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import type { AppScreen, GameState } from './types';
 import { INITIAL_GAME_STATE } from './types';
 import LobbyScreen from './components/LobbyScreen';
@@ -7,34 +8,56 @@ import TimeControlScreen from './components/TimeControlScreen';
 import WaitingRoomScreen from './components/WaitingRoomScreen';
 import RulesModal from './components/RulesModal';
 import BackgroundLayer from './components/BackgroundLayer';
+import LiquidFilter from './components/LiquidFilter';
+import styles from './App.module.css';
 
 const GameScreen = lazy(() => import('./components/GameScreen'));
 
-// ── URL param detection for join flow ──────────────────────────────────────────
+// ── URL param detection ─────────────────────────────────────────────────────
 function getUrlRoomCode(): string | null {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('room');
+  return new URLSearchParams(window.location.search).get('room');
 }
 
+// Screens rendered inside the single morphing liquid-glass panel
+const PANEL_SCREENS: AppScreen[] = ['lobby', 'timeControl', 'waitingRoom'];
+
+// ── Content motion variants (blur-fade-slide) ─────────────────────────────
+const contentVariants: Variants = {
+  hidden: { opacity: 0, filter: 'blur(8px)', y: 12 },
+  visible: { opacity: 1, filter: 'blur(0px)', y: 0 },
+  exit:   { opacity: 0, filter: 'blur(8px)', y: -10 },
+};
+
+// ── Game view variants ─────────────────────────────────────────────────────
+const gameVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.96, filter: 'blur(12px)' },
+  visible: { opacity: 1, scale: 1, filter: 'blur(0px)' },
+  exit:   { opacity: 0, scale: 0.94, filter: 'blur(12px)' },
+};
+
 export default function App() {
-  const [screen, setScreen] = useState<AppScreen>('lobby');
-  const [gameState, setGameState] = useState<GameState>({
+  const [screen, setScreen]         = useState<AppScreen>('lobby');
+  const [gameState, setGameState]   = useState<GameState>({
     ...INITIAL_GAME_STATE,
     playerName: localStorage.getItem('neochess_username') ?? '',
   });
-  const [roomCode] = useState<string | null>(getUrlRoomCode);
-  const [rulesOpen, setRulesOpen] = useState(false);
+  const [roomCode]                  = useState<string | null>(getUrlRoomCode);
+  const [rulesOpen, setRulesOpen]   = useState(false);
   const [gameActive, setGameActive] = useState(false);
 
-  // Persist username across sessions
+  // Persist username
   useEffect(() => {
     if (gameState.playerName) {
       localStorage.setItem('neochess_username', gameState.playerName);
     }
   }, [gameState.playerName]);
 
-  // If URL has ?room=XXX, show lobby in join mode immediately
   const isJoinMode = !!roomCode;
+
+  // ── Navigation ─────────────────────────────────────────────────────────
+  const navigate = (next: AppScreen) => {
+    setScreen(next);
+  };
 
   const goToGame = (newState: Partial<GameState>) => {
     setGameState((prev) => ({ ...prev, ...newState }));
@@ -49,155 +72,174 @@ export default function App() {
       ...INITIAL_GAME_STATE,
       playerName: prev.playerName,
     }));
-    // Strip URL query params
     window.history.replaceState({}, document.title, window.location.pathname);
   };
 
-  const pageVariants = {
-    initial: { opacity: 0, y: 16, scale: 0.97 },
-    animate: { opacity: 1, y: 0, scale: 1 },
-    exit:    { opacity: 0, y: -16, scale: 0.97 },
-  };
-  const pageTransition = { duration: 0.35 };
+  const showPanel = PANEL_SCREENS.includes(screen);
 
   return (
     <>
+      {/* SVG filter definitions */}
+      <LiquidFilter />
+
+      {/* Parallax chess-piece background */}
       <BackgroundLayer gameActive={gameActive} />
 
+      {/* Rules modal */}
       <RulesModal open={rulesOpen} onClose={() => setRulesOpen(false)} />
 
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 1,
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '24px',
-        }}
-      >
-        <AnimatePresence mode="wait">
-          {screen === 'lobby' && (
-            <motion.div
-              key="lobby"
-              variants={pageVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={pageTransition}
-            >
-              <LobbyScreen
-                playerName={gameState.playerName}
-                isJoinMode={isJoinMode}
-                roomCode={roomCode}
-                onNameChange={(name) =>
-                  setGameState((prev) => ({ ...prev, playerName: name }))
-                }
-                onPlayAI={(name) => {
-                  setGameState((prev) => ({
-                    ...prev,
-                    playerName: name,
-                    mode: 'ai',
-                    playerColor: 'w',
-                    whiteUsername: name,
-                    blackUsername: 'Stockfish',
-                  }));
-                  setScreen('game');
-                  setGameActive(true);
-                }}
-                onPlayFriend={(name) => {
-                  setGameState((prev) => ({ ...prev, playerName: name }));
-                  setScreen('timeControl');
-                }}
-                onJoinGame={(name) => {
-                  setGameState((prev) => ({
-                    ...prev,
-                    playerName: name,
-                    roomCode: roomCode,
-                  }));
-                  // GameScreen handles the join flow via Supabase
-                  goToGame({
-                    playerName: name,
-                    mode: 'multiplayer',
-                    roomCode: roomCode,
-                  });
-                }}
-                onRules={() => setRulesOpen(true)}
-              />
-            </motion.div>
-          )}
+      {/* ── Root flex centring ─────────────────────────────────────── */}
+      <div className={`${styles.root} ${screen === 'game' ? styles.rootGame : ''}`}>
 
-          {screen === 'timeControl' && (
-            <motion.div
-              key="timeControl"
-              variants={pageVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={pageTransition}
-            >
-              <TimeControlScreen
-                playerName={gameState.playerName}
-                onBack={() => setScreen('lobby')}
-                onCreateChallenge={(roomCode, gameId, playerColor, tc) => {
-                  setGameState((prev) => ({
-                    ...prev,
-                    mode: 'multiplayer',
-                    roomCode,
-                    gameId,
-                    playerColor,
-                    timeControlIncrement: tc.increment,
-                    clockWhiteMs: tc.minutes * 60000,
-                    clockBlackMs: tc.minutes * 60000,
-                    turnStartedAt: new Date().toISOString(),
-                    whiteUsername: playerColor === 'w' ? prev.playerName : '',
-                    blackUsername: playerColor === 'b' ? prev.playerName : '',
-                  }));
-                  setScreen('waitingRoom');
-                }}
-              />
-            </motion.div>
-          )}
+        {/* ════════════════════════════════════════════════════════════
+            LOBBY PANEL — single persistent element that morphs between
+            lobby / timeControl / waitingRoom.
 
-          {screen === 'waitingRoom' && (
+            Architecture:
+              lg-filter-shell  → gets the SVG filter (outer wrapper)
+              ↳ motion.div (layout, liquid-glass) → springs to new size
+                ↳ AnimatePresence (popLayout) → blurs content in/out
+        ════════════════════════════════════════════════════════════ */}
+        <AnimatePresence>
+          {showPanel && (
+            /* The glass panel — auto-sizes via `layout`, springs on change */
             <motion.div
-              key="waitingRoom"
-              variants={pageVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={pageTransition}
+              className={`liquid-glass ${styles.panel}`}
+              layout
+              layoutRoot
+              initial={{ opacity: 0, scale: 0.88 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{    opacity: 0, scale: 0.88 }}
+              transition={{
+                layout:  {
+                  type: 'spring',
+                  stiffness: 220,
+                  damping: 30,
+                  mass: 1,
+                },
+                opacity: { duration: 0.35 },
+                scale:   { type: 'spring', stiffness: 280, damping: 28 },
+              }}
             >
-              <WaitingRoomScreen
-                gameState={gameState}
-                onGameStart={(whiteUsername, blackUsername, updatedState) => {
-                  goToGame({
-                    ...updatedState,
-                    whiteUsername,
-                    blackUsername,
-                  });
-                }}
-                onCancel={goToLobby}
-              />
-            </motion.div>
-          )}
+              {/* Cloned backdrop image layer for organic glass refraction */}
+              <div className="liquid-glass-bg liquid-glass-bg-lobby" />
 
+              {/* Content — blurs out then in on each screen change */}
+              <LayoutGroup>
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    {screen === 'lobby' && (
+                      <motion.div
+                        key="lobby"
+                        variants={contentVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        className={styles.panelContent}
+                      >
+                        <LobbyScreen
+                          playerName={gameState.playerName}
+                          isJoinMode={isJoinMode}
+                          roomCode={roomCode}
+                          onNameChange={(n) =>
+                            setGameState((p) => ({ ...p, playerName: n }))
+                          }
+                          onPlayAI={(name) =>
+                            goToGame({
+                              playerName: name,
+                              mode: 'ai',
+                              playerColor: 'w',
+                              whiteUsername: name,
+                              blackUsername: 'Stockfish',
+                            })
+                          }
+                          onPlayFriend={(name) => {
+                            setGameState((p) => ({ ...p, playerName: name }));
+                            navigate('timeControl');
+                          }}
+                          onJoinGame={(name) =>
+                            goToGame({
+                              playerName: name,
+                              mode: 'multiplayer',
+                              roomCode,
+                            })
+                          }
+                          onRules={() => setRulesOpen(true)}
+                        />
+                      </motion.div>
+                    )}
+
+                    {screen === 'timeControl' && (
+                      <motion.div
+                        key="timeControl"
+                        variants={contentVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        className={styles.panelContent}
+                      >
+                        <TimeControlScreen
+                          playerName={gameState.playerName}
+                          onBack={() => navigate('lobby')}
+                          onCreateChallenge={(rc, gameId, playerColor, tc) => {
+                            setGameState((p) => ({
+                              ...p,
+                              mode: 'multiplayer',
+                              roomCode: rc,
+                              gameId,
+                              playerColor,
+                              timeControlIncrement: tc.increment,
+                              clockWhiteMs: tc.minutes * 60000,
+                              clockBlackMs: tc.minutes * 60000,
+                              turnStartedAt: new Date().toISOString(),
+                              whiteUsername: playerColor === 'w' ? p.playerName : '',
+                              blackUsername: playerColor === 'b' ? p.playerName : '',
+                            }));
+                            navigate('waitingRoom');
+                          }}
+                        />
+                      </motion.div>
+                    )}
+
+                    {screen === 'waitingRoom' && (
+                      <motion.div
+                        key="waitingRoom"
+                        variants={contentVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
+                        className={styles.panelContent}
+                      >
+                        <WaitingRoomScreen
+                          gameState={gameState}
+                          onGameStart={(wu, bu, updated) =>
+                            goToGame({ ...updated, whiteUsername: wu, blackUsername: bu })
+                          }
+                          onCancel={goToLobby}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </LayoutGroup>
+              </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ════════════════════════════════════════════════════════════
+            GAME VIEW — separate full-layout view, blurs in/out
+        ════════════════════════════════════════════════════════════ */}
+        <AnimatePresence>
           {screen === 'game' && (
             <motion.div
               key="game"
-              variants={pageVariants}
-              initial="initial"
-              animate="animate"
+              variants={gameVariants}
+              initial="hidden"
+              animate="visible"
               exit="exit"
-              transition={pageTransition}
-              style={{ width: '100%', display: 'flex', justifyContent: 'center' }}
+              className={styles.gameWrapper}
             >
               <Suspense
                 fallback={
-                  <div style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-                    Loading…
-                  </div>
+                  <div className={styles.suspenseFallback}>Loading…</div>
                 }
               >
                 <GameScreen
@@ -209,6 +251,7 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
+
       </div>
     </>
   );

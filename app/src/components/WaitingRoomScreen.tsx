@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import GlassCard from './GlassCard';
+import { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
-import { GameState } from '../types';
+import type { GameState } from '../types';
 import styles from './LobbyScreen.module.css';
 import wrStyles from './WaitingRoomScreen.module.css';
 
@@ -73,7 +72,7 @@ export default function WaitingRoomScreen({ gameState, onGameStart, onCancel }: 
   };
 
   return (
-    <GlassCard>
+    <div>
       <div className={styles.brand}>
         <h1 className={styles.title}>NeoChess</h1>
         <p className={styles.subtitle}>Play a Friend</p>
@@ -115,6 +114,6 @@ export default function WaitingRoomScreen({ gameState, onGameStart, onCancel }: 
       >
         Cancel
       </button>
-    </GlassCard>
+    </div>
   );
 }

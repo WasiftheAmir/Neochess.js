@@ -1,5 +1,4 @@
-import React, { useState, useRef } from 'react';
-import GlassCard from './GlassCard';
+import { useState, useRef } from 'react';
 import styles from './LobbyScreen.module.css';
 
 interface Props {
@@ -61,7 +60,7 @@ export default function LobbyScreen({
   };
 
   return (
-    <GlassCard>
+    <div className={styles.inner}>
       {/* Brand */}
       <div className={styles.brand}>
         <h1 className={styles.title}>NeoChess</h1>
@@ -125,6 +124,6 @@ export default function LobbyScreen({
           </button>
         </div>
       )}
-    </GlassCard>
+    </div>
   );
 }
