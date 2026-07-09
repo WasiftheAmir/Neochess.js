@@ -137,7 +137,6 @@ export default function Chessboard({
       } else {
         setDraggingPiece(null);
         setDragOverSq(null);
-        onSquareClick(data.sq);
       }
     };
 
