@@ -82,6 +82,10 @@
   background-color: #73cbfa !important;
 }
 
+.premoveSquare {
+  background-color: rgba(244, 42, 50, 0.55) !important;
+}
+
 .selected {
   background-color: var(--sq-selected) !important;
 }

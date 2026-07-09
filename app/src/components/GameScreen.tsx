@@ -48,6 +48,7 @@ export default function GameScreen({
   const [legalTargets, setLegalTargets] = useState<string[]>([]);
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
   const [pendingSelfCaptureSq, setPendingSelfCaptureSq] = useState<string | null>(null);
+  const [premove, setPremove] = useState<{ from: string; to: string } | null>(null);
 
   // AI state
   const [aiThinking, setAiThinking] = useState(false);
@@ -372,6 +373,7 @@ export default function GameScreen({
     setSelectedSq(null);
     setLegalTargets([]);
     setPendingSelfCaptureSq(null);
+    setPremove(null);
     refresh();
 
     // ── Persist in multiplayer ─────────────────────────────────────────────
@@ -491,16 +493,71 @@ export default function GameScreen({
     }
   }, [chess, stockfish, refresh]);
 
+  // ─── Auto-execute Premove when turn switches to player ────────────────────
+  useEffect(() => {
+    if (isGameOver() || !premove) return;
+    const myColor = gameState.mode === 'ai' ? 'w' : gameState.playerColor;
+    const currentTurn = chess.turn() as 'w' | 'b';
+    const isNowMyTurn =
+      gameState.mode === 'ai'
+        ? !aiThinking && currentTurn === 'w'
+        : currentTurn === myColor;
+
+    if (isNowMyTurn) {
+      const { from, to } = premove;
+      setPremove(null);
+      const targets = (
+        chess.moves({ square: from, verbose: true }) as Array<{ to: string }>
+      ).map((m) => m.to);
+      if (targets.includes(to)) {
+        executeMove(from, to);
+      }
+    }
+  }, [chess, premove, isGameOver, gameState.mode, gameState.playerColor, aiThinking, executeMove]);
+
   // ─── Click-to-move handler ────────────────────────────────────────────────
   const handleSquareClick = useCallback((sq: string) => {
     if (isGameOver()) return;
-    if (gameState.mode === 'ai') {
-      if (aiThinking || chess.turn() === 'b') return;
-    }
-    if (gameState.mode === 'multiplayer' && chess.turn() !== gameState.playerColor) return;
+    const myColor = gameState.mode === 'ai' ? 'w' : gameState.playerColor;
+    const currentTurn = chess.turn() as 'w' | 'b';
+    const isMyTurn =
+      gameState.mode === 'ai'
+        ? !aiThinking && currentTurn === 'w'
+        : currentTurn === myColor;
 
     const targetPiece = chess.get(sq) as { color: 'w' | 'b'; type: string } | null;
-    const currentTurn = chess.turn() as 'w' | 'b';
+    const isMyPiece = targetPiece && targetPiece.color === myColor;
+
+    if (!isMyTurn) {
+      if (selectedSq) {
+        if (selectedSq === sq) {
+          setSelectedSq(null);
+          setPendingSelfCaptureSq(null);
+          return;
+        }
+        if (requireDoubleClickSelfCapture && isMyPiece) {
+          if (pendingSelfCaptureSq === sq) {
+            setPremove({ from: selectedSq, to: sq });
+            setSelectedSq(null);
+            setPendingSelfCaptureSq(null);
+          } else {
+            setPendingSelfCaptureSq(sq);
+          }
+          return;
+        }
+        setPremove({ from: selectedSq, to: sq });
+        setSelectedSq(null);
+        setPendingSelfCaptureSq(null);
+        return;
+      }
+
+      if (isMyPiece) {
+        setSelectedSq(sq);
+        setPendingSelfCaptureSq(null);
+      }
+      return;
+    }
+
     const isFriendly = targetPiece && targetPiece.color === currentTurn;
 
     if (selectedSq && legalTargets.includes(sq)) {
@@ -535,15 +592,42 @@ export default function GameScreen({
     setSelectedSq(null);
     setLegalTargets([]);
     setPendingSelfCaptureSq(null);
+    setPremove(null);
   }, []);
 
   // ─── Drag handler ─────────────────────────────────────────────────────────
   const handleDrop = useCallback((from: string, to: string) => {
     if (isGameOver()) return;
-    if (gameState.mode === 'multiplayer' && chess.turn() !== gameState.playerColor) return;
-    if (gameState.mode === 'ai' && (aiThinking || chess.turn() !== 'w')) return;
+    const myColor = gameState.mode === 'ai' ? 'w' : gameState.playerColor;
+    const currentTurn = chess.turn() as 'w' | 'b';
+    const isMyTurn =
+      gameState.mode === 'ai'
+        ? !aiThinking && currentTurn === 'w'
+        : currentTurn === myColor;
+
     const piece = chess.get(from) as { color: 'w' | 'b' } | null;
-    if (!piece || piece.color !== chess.turn()) return;
+    if (!piece || piece.color !== myColor) return;
+
+    if (!isMyTurn) {
+      const targetPiece = chess.get(to) as { color: 'w' | 'b' } | null;
+      const isFriendlyTarget = targetPiece && targetPiece.color === myColor;
+      if (requireDoubleClickSelfCapture && isFriendlyTarget) {
+        if (pendingSelfCaptureSq === to && selectedSq === from) {
+          setPremove({ from, to });
+          setSelectedSq(null);
+          setPendingSelfCaptureSq(null);
+        } else {
+          setSelectedSq(from);
+          setPendingSelfCaptureSq(to);
+        }
+        return;
+      }
+      setPremove({ from, to });
+      setSelectedSq(null);
+      setPendingSelfCaptureSq(null);
+      return;
+    }
+
     const targets = (chess.moves({ square: from, verbose: true }) as Array<{ to: string }>).map((m) => m.to);
     if (targets.includes(to)) {
       const targetPiece = chess.get(to) as { color: 'w' | 'b' } | null;
@@ -564,11 +648,13 @@ export default function GameScreen({
   }, [chess, isGameOver, gameState, aiThinking, requireDoubleClickSelfCapture, pendingSelfCaptureSq, selectedSq, executeMove]);
 
   // ─── canInteract helper ───────────────────────────────────────────────────
-  const canInteract = useCallback((_sq: string): boolean => {
+  const canInteract = useCallback((sq: string): boolean => {
     if (isGameOver()) return false;
-    if (gameState.mode === 'ai') return !aiThinking && chess.turn() === 'w';
-    return chess.turn() === gameState.playerColor;
-  }, [chess, isGameOver, gameState, aiThinking]);
+    const piece = chess.get(sq) as { color: 'w' | 'b' } | null;
+    if (!piece) return false;
+    const myColor = gameState.mode === 'ai' ? 'w' : gameState.playerColor;
+    return piece.color === myColor;
+  }, [chess, isGameOver, gameState]);
 
   // ─── Pass turn ────────────────────────────────────────────────────────────
   const handlePass = useCallback(async () => {
@@ -853,6 +939,7 @@ export default function GameScreen({
             onDrop={handleDrop}
             onCancelDrag={handleCancelSelection}
             currentTurn={chess.turn() as 'w' | 'b'}
+            premove={premove}
           />
 
           {/* Color assignment brief overlay */}
