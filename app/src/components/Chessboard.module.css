@@ -74,8 +74,12 @@
   background-color: var(--sq-dark);
 }
 
-.lastMove {
-  background-color: var(--sq-lastmove) !important;
+.light.lastMove {
+  background-color: #b5e5ff !important;
+}
+
+.dark.lastMove {
+  background-color: #73cbfa !important;
 }
 
 .selected {
