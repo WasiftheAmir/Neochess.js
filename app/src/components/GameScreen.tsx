@@ -6,6 +6,7 @@ import Chessboard from './Chessboard';
 import GameSidebar from './GameSidebar';
 import EndGameOverlay from './EndGameOverlay';
 import ColorAssignmentOverlay from './ColorAssignmentOverlay';
+import ResignConfirmModal from './ResignConfirmModal';
 import { supabase } from '../supabase';
 import { useStockfish } from '../hooks/useStockfish';
 import { useClock } from '../hooks/useClock';
@@ -49,6 +50,7 @@ export default function GameScreen({
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
   const [pendingSelfCaptureSq, setPendingSelfCaptureSq] = useState<string | null>(null);
   const [premoves, setPremoves] = useState<Array<{ from: string; to: string }>>([]);
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
 
   // AI state
   const [aiThinking, setAiThinking] = useState(false);
@@ -770,10 +772,12 @@ export default function GameScreen({
       }
     }
   }, [chess, gameState, aiThinking, doAiMove, refresh]);
-
   // ─── Resign ───────────────────────────────────────────────────────────────
-  const handleResign = useCallback(async () => {
-    if (!window.confirm('Are you sure you want to resign? This cannot be undone.')) return;
+  const handleResign = useCallback(() => {
+    setShowResignConfirm(true);
+  }, []);
+
+  const confirmResignation = useCallback(async () => {
     const winnerColor = gameState.playerColor === 'w' ? 'black' : 'white';
     await supabase.from('games').update({
       status: 'finished',
@@ -1069,6 +1073,12 @@ export default function GameScreen({
           onRules={onRules}
         />
       </div>
+
+      <ResignConfirmModal
+        open={showResignConfirm}
+        onClose={() => setShowResignConfirm(false)}
+        onConfirm={confirmResignation}
+      />
     </div>
   );
 }
