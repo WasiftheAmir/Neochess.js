@@ -5,7 +5,7 @@ import styles from './Chessboard.module.css';
 function pieceUrl(color: 'w' | 'b', type: string): string {
   const c = color === 'w' ? 'w' : 'b';
   const t = type.toLowerCase();
-  return `https://www.chess.com/chess-themes/pieces/neo_angle/150/${c}${t}.png`;
+  return `https://www.chess.com/chess-themes/pieces/neo/150/${c}${t}.png`;
 }
 
 interface ChessPiece {
