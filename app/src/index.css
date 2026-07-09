@@ -91,9 +91,7 @@ select { font-family: 'Inter', system-ui, sans-serif; }
  *  4. IRIDESCENT EDGE SHIMMER — ::after renders the rainbow shimmer line.
  */
 .liquid-glass {
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: var(--lg-blur);
-  -webkit-backdrop-filter: var(--lg-blur);
+  background: transparent;
   border-radius: var(--lg-radius);
   box-shadow:
     /* Thin inner rim — brightens the inside edge of the glass wall */
@@ -131,11 +129,11 @@ select { font-family: 'Inter', system-ui, sans-serif; }
 }
 
 .liquid-glass-bg-lobby {
-  background-image: linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)), url('/Website_Back_Drop.png');
+  background-image: linear-gradient(rgba(0,0,0,0.70), rgba(0,0,0,0.70)), url('/Website_Back_Drop.png');
 }
 
 .liquid-glass-bg-game {
-  background-image: linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)), url('/Website_Back_Drop_1.png');
+  background-image: linear-gradient(rgba(0,0,0,0.70), rgba(0,0,0,0.70)), url('/Website_Back_Drop_1.png');
 }
 
 /*

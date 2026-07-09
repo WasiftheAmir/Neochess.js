@@ -13,7 +13,7 @@ export default function BackgroundLayer({ gameActive }: Props) {
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'transparent',
+          background: 'rgba(0,0,0,0.70)',
           zIndex: 0,
         }}
       />
