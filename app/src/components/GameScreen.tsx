@@ -529,7 +529,7 @@ export default function GameScreen({
     setSelectedSq(null);
     setLegalTargets([]);
     setPendingSelfCaptureSq(null);
-  }, [chess, isGameOver, gameState, aiThinking, selectedSq, legalTargets, pendingSelfCaptureSq, executeMove]);
+  }, [chess, isGameOver, gameState, aiThinking, selectedSq, legalTargets, pendingSelfCaptureSq, requireDoubleClickSelfCapture, executeMove]);
 
   const handleCancelSelection = useCallback(() => {
     setSelectedSq(null);
@@ -545,8 +545,23 @@ export default function GameScreen({
     const piece = chess.get(from) as { color: 'w' | 'b' } | null;
     if (!piece || piece.color !== chess.turn()) return;
     const targets = (chess.moves({ square: from, verbose: true }) as Array<{ to: string }>).map((m) => m.to);
-    if (targets.includes(to)) executeMove(from, to);
-  }, [chess, isGameOver, gameState, aiThinking, executeMove]);
+    if (targets.includes(to)) {
+      const targetPiece = chess.get(to) as { color: 'w' | 'b' } | null;
+      const isFriendly = targetPiece && targetPiece.color === piece.color;
+      if (requireDoubleClickSelfCapture && isFriendly) {
+        if (pendingSelfCaptureSq === to && selectedSq === from) {
+          executeMove(from, to);
+        } else {
+          setSelectedSq(from);
+          setLegalTargets(targets);
+          setPendingSelfCaptureSq(to);
+        }
+        return;
+      }
+      setPendingSelfCaptureSq(null);
+      executeMove(from, to);
+    }
+  }, [chess, isGameOver, gameState, aiThinking, requireDoubleClickSelfCapture, pendingSelfCaptureSq, selectedSq, executeMove]);
 
   // ─── canInteract helper ───────────────────────────────────────────────────
   const canInteract = useCallback((_sq: string): boolean => {
