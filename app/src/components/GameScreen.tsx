@@ -12,12 +12,11 @@ import { useClock } from '../hooks/useClock';
 import { GameState, PlayerColor } from '../types';
 import styles from './GameScreen.module.css';
 
-const REQUIRE_DOUBLE_CLICK_SELF_CAPTURE = true;
-
 interface Props {
   initialGameState: GameState;
   onReturnToLobby: () => void;
   onRules: () => void;
+  requireDoubleClickSelfCapture?: boolean;
 }
 
 // ─── helper: parse UCI string → chess.move() args ──────────────────────────
@@ -30,7 +29,12 @@ function parseUciMove(uci: string): { from: string; to: string; promotion?: stri
   };
 }
 
-export default function GameScreen({ initialGameState, onReturnToLobby, onRules }: Props) {
+export default function GameScreen({
+  initialGameState,
+  onReturnToLobby,
+  onRules,
+  requireDoubleClickSelfCapture = true,
+}: Props) {
   // ── Chess engine instance ──────────────────────────────────────────────────
   const chessRef = useRef(new Chess());
   const chess = chessRef.current;
@@ -500,7 +504,7 @@ export default function GameScreen({ initialGameState, onReturnToLobby, onRules 
     const isFriendly = targetPiece && targetPiece.color === currentTurn;
 
     if (selectedSq && legalTargets.includes(sq)) {
-      if (REQUIRE_DOUBLE_CLICK_SELF_CAPTURE && isFriendly) {
+      if (requireDoubleClickSelfCapture && isFriendly) {
         if (pendingSelfCaptureSq === sq) {
           executeMove(selectedSq, sq);
         } else {

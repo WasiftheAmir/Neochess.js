@@ -5,6 +5,8 @@ import styles from './RulesModal.module.css';
 interface Props {
   open: boolean;
   onClose: () => void;
+  requireDoubleClickSelfCapture?: boolean;
+  onToggleDoubleClickSelfCapture?: (value: boolean) => void;
 }
 
 const RULES = [
@@ -26,7 +28,12 @@ const RULES = [
   },
 ];
 
-export default function RulesModal({ open, onClose }: Props) {
+export default function RulesModal({
+  open,
+  onClose,
+  requireDoubleClickSelfCapture,
+  onToggleDoubleClickSelfCapture,
+}: Props) {
   // Close on Escape
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -71,6 +78,58 @@ export default function RulesModal({ open, onClose }: Props) {
                 </div>
               ))}
             </div>
+
+            {typeof requireDoubleClickSelfCapture === 'boolean' &&
+              onToggleDoubleClickSelfCapture && (
+                <>
+                  <div className={styles.divider} />
+                  <div className={styles.settingsSection}>
+                    <span className={styles.sectionTitle}>Gameplay Settings</span>
+                    <div
+                      className={styles.settingRow}
+                      onClick={() =>
+                        onToggleDoubleClickSelfCapture(
+                          !requireDoubleClickSelfCapture
+                        )
+                      }
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onToggleDoubleClickSelfCapture(
+                            !requireDoubleClickSelfCapture
+                          );
+                        }
+                      }}
+                    >
+                      <div className={styles.settingInfo}>
+                        <span className={styles.settingLabel}>
+                          Double-Click for Self-Capture
+                        </span>
+                        <span className={styles.settingDesc}>
+                          Require a confirmation click (yellow highlight ring) before self-capturing a friendly piece.
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={requireDoubleClickSelfCapture}
+                        className={styles.toggleSwitch}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleDoubleClickSelfCapture(
+                            !requireDoubleClickSelfCapture
+                          );
+                        }}
+                      >
+                        <span className={styles.toggleKnob} />
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
           </motion.div>
         </motion.div>
       )}

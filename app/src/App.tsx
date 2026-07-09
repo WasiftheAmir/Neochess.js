@@ -44,6 +44,21 @@ export default function App() {
   const [roomCode]                  = useState<string | null>(getUrlRoomCode);
   const [rulesOpen, setRulesOpen]   = useState(false);
   const [gameActive, setGameActive] = useState(false);
+  const [requireDoubleClickSelfCapture, setRequireDoubleClickSelfCapture] =
+    useState<boolean>(() => {
+      const stored = localStorage.getItem(
+        'neochess_require_double_click_self_capture'
+      );
+      return stored !== null ? stored === 'true' : true;
+    });
+
+  const handleToggleDoubleClickSelfCapture = (value: boolean) => {
+    setRequireDoubleClickSelfCapture(value);
+    localStorage.setItem(
+      'neochess_require_double_click_self_capture',
+      String(value)
+    );
+  };
 
   // Persist username
   useEffect(() => {
@@ -86,7 +101,12 @@ export default function App() {
       <BackgroundLayer gameActive={gameActive} />
 
       {/* Rules modal */}
-      <RulesModal open={rulesOpen} onClose={() => setRulesOpen(false)} />
+      <RulesModal
+        open={rulesOpen}
+        onClose={() => setRulesOpen(false)}
+        requireDoubleClickSelfCapture={requireDoubleClickSelfCapture}
+        onToggleDoubleClickSelfCapture={handleToggleDoubleClickSelfCapture}
+      />
 
       {/* ── Root flex centring ─────────────────────────────────────── */}
       <div className={`${styles.root} ${screen === 'game' ? styles.rootGame : ''}`}>
@@ -246,6 +266,7 @@ export default function App() {
                   initialGameState={gameState}
                   onReturnToLobby={goToLobby}
                   onRules={() => setRulesOpen(true)}
+                  requireDoubleClickSelfCapture={requireDoubleClickSelfCapture}
                 />
               </Suspense>
             </motion.div>
