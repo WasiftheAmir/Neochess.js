@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './Chessboard.module.css';
 
-// Neo SVG piece set from Lichess
+// Neo PNG piece set from Chess.com
 function pieceUrl(color: 'w' | 'b', type: string): string {
   const c = color === 'w' ? 'w' : 'b';
-  const t = type.toUpperCase();
-  return `https://lichess1.org/assets/piece/neo/${c}${t}.svg`;
+  const t = type.toLowerCase();
+  return `https://www.chess.com/chess-themes/pieces/neo/150/${c}${t}.png`;
 }
 
 interface ChessPiece {
