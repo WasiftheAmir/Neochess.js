@@ -61,9 +61,6 @@ export default function RulesModal({
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ duration: 0.3, ease: [0.34, 1.56, 0.64, 1] }}
           >
-            {/* Cloned backdrop image layer for organic glass refraction */}
-            <div className="liquid-glass-bg liquid-glass-bg-lobby" />
-
             <button className={styles.closeBtn} onClick={onClose} aria-label="Close rules">
               ×
             </button>
