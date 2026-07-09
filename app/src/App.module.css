@@ -1,0 +1,57 @@
+.root {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.rootGame {
+  padding: 0;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ── Lobby panel ───────────────────────────────────────────────────── */
+/*
+ * Width is fixed at 440px.  Height auto-stretches to content (the
+ * Framer Motion `layout` animation handles the size morphing).
+ * No explicit height here — Framer Motion measures the rendered size.
+ */
+.panel {
+  width: 440px;
+  max-width: calc(100vw - 32px);
+  /* No overflow:hidden here — index.css sets it via .liquid-glass.
+     Padding is set on .panelContent so the layout measurement includes it. */
+}
+
+.panelContent {
+  padding: 40px 36px;
+  /* min-width prevents the panel from collapsing to 0 during popLayout */
+  min-width: 0;
+  width: 100%;
+}
+
+.gameWrapper {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.suspenseFallback {
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 32px;
+}
+
+@media (max-width: 480px) {
+  .panelContent {
+    padding: 28px 20px;
+  }
+}

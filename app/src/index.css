@@ -1,0 +1,236 @@
+/* ================================================================
+   NeoChess — Global CSS Design Tokens & Base Styles
+   ================================================================ */
+
+/* ── Google Fonts are loaded in index.html ── */
+
+:root {
+  --bg-base: #000000;
+  --bg-panel: rgba(10, 10, 10, 0.65);
+  --bg-surface: #0e0e0e;
+  --accent: #ffffff;
+  --accent-dim: #a1a1a1;
+  --accent-glow: rgba(255, 255, 255, 0.15);
+  --text-primary: #ffffff;
+  --text-muted: #888888;
+  --border: #2a2a2a;
+  --sq-light: #eaeaea;
+  --sq-dark: #242424;
+  --sq-selected: rgba(56, 189, 248, 0.45);
+  --sq-legal: rgba(255, 255, 255, 0.2);
+  --sq-lastmove: rgba(56, 189, 248, 0.18);
+  --sq: clamp(44px, min(9.2vh, 6.2vw), 92px);
+
+  /* ── Liquid glass tokens ────────────────────────────────────────── */
+  --lg-blur:          blur(52px) saturate(180%);
+  --lg-radius:        28px;
+
+  /* Chromatic aberration gradient border colours */
+  --lg-ca-tl: rgba(255, 255, 255, 0.28);   /* top-left: bright white  */
+  --lg-ca-tr: rgba(180, 220, 255, 0.18);   /* top-right: cool blue    */
+  --lg-ca-br: rgba(255, 200, 120, 0.16);   /* bottom-right: warm amber */
+  --lg-ca-bl: rgba(200, 140, 255, 0.18);   /* bottom-left: violet     */
+
+  /* Iridescent edge colours */
+  --lg-iris-1: rgba(255, 70,  160, 0.75);
+  --lg-iris-2: rgba(255, 200, 0,   0.65);
+  --lg-iris-3: rgba(0,   255, 180, 0.65);
+  --lg-iris-4: rgba(0,   160, 255, 0.75);
+  --lg-iris-5: rgba(180, 0,   255, 0.75);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  min-height: 100vh;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+/* ── Utility ── */
+button { font-family: 'Inter', system-ui, sans-serif; }
+select { font-family: 'Inter', system-ui, sans-serif; }
+
+/* ================================================================
+   Liquid Glass — shared class (applied to the morphing panel,
+   overlays, modals, etc.)
+   ================================================================ */
+
+/**
+ * .liquid-glass
+ *
+ * Design goals (v3):
+ *  1. FULLY TRANSPARENT body — background: transparent. Only the
+ *     backdrop-filter blur distorts/refracts the view through the glass.
+ *  2. PURE CSS BORDERS — No SVG displacement filters are applied to the vectors.
+ *     This ensures all button/input borders, card outlines, and text remain
+ *     perfectly anti-aliased, crisp, and sharp on all displays.
+ *  3. REFRACTED EDGE HIGHLIGHTS — ::before paints a thin 2px conic-gradient
+ *     border representing chromatic aberration at the glass wall.
+ *  4. IRIDESCENT EDGE SHIMMER — ::after renders the rainbow shimmer line.
+ */
+.liquid-glass {
+  background: transparent;
+  border-radius: var(--lg-radius);
+  box-shadow:
+    /* Thin inner rim — brightens the inside edge of the glass wall */
+    0 0 0 0.5px rgba(255, 255, 255, 0.11) inset,
+    /* Outer depth shadow */
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    0 8px  24px rgba(0, 0, 0, 0.35),
+    0 2px  8px  rgba(0, 0, 0, 0.25);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border: none;
+}
+
+/*
+ * .liquid-glass-bg
+ * Clones the parallax backdrop image and locks its alignment to the viewport
+ * using background-attachment: fixed.
+ * We apply the SVG displacement filter and blur ONLY to this layer, so the
+ * background under the card looks realistically warped/refracted, while all
+ * card borders, buttons, text, and inputs remain perfectly crisp and straight.
+ *
+ * inset: -40px provides an overscan buffer so the displacement map doesn't
+ * pull blank pixels at the card edges.
+ */
+.liquid-glass-bg {
+  position: absolute;
+  inset: -40px;
+  background-size: cover;
+  background-position: center;
+  background-attachment: scroll, fixed; /* scroll for gradient overlay, fixed for backdrop image */
+  filter: url(#lg-glass) blur(24px) saturate(180%);
+  z-index: -2;
+  pointer-events: none;
+}
+
+.liquid-glass-bg-lobby {
+  background-image: linear-gradient(rgba(0,0,0,0.70), rgba(0,0,0,0.70)), url('/Website_Back_Drop.png');
+}
+
+.liquid-glass-bg-game {
+  background-image: linear-gradient(rgba(0,0,0,0.70), rgba(0,0,0,0.70)), url('/Website_Back_Drop_1.png');
+}
+
+/*
+ * Chromatic-aberration gradient border — mask-composite technique.
+ *
+ * Conic gradient simulates how light bends around a rounded glass slab.
+ */
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;   /* border ring thickness */
+
+  background: conic-gradient(
+    from 225deg at 50% 50%,
+    var(--lg-ca-tl)  0deg,
+    var(--lg-ca-tr) 90deg,
+    rgba(255, 255, 255, 0.04) 150deg,
+    var(--lg-ca-br) 210deg,
+    var(--lg-ca-bl) 270deg,
+    rgba(255, 255, 255, 0.04) 315deg,
+    var(--lg-ca-tl) 360deg
+  );
+
+  /* Cut out the center so only the rim gradient is visible */
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: destination-out;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+
+  pointer-events: none;
+  z-index: 2;
+}
+
+/*
+ * Iridescent rainbow at the bottom edge.
+ */
+.liquid-glass::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 6%;
+  right: 6%;
+  height: 2.5px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--lg-iris-1) 10%,
+    var(--lg-iris-2) 26%,
+    var(--lg-iris-3) 50%,
+    var(--lg-iris-4) 70%,
+    var(--lg-iris-5) 86%,
+    transparent 100%
+  );
+  filter: blur(1.5px) brightness(1.2);
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 0 0 2px 2px;
+  animation: iris-shimmer 7s ease-in-out infinite;
+}
+
+/* Content above the background and rim highlights */
+.liquid-glass > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────── */
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes self-capture-pulse {
+  from { box-shadow: inset 0 0 0 3px rgba(251, 191, 36, 0.5); }
+  to   { box-shadow: inset 0 0 0 3px rgba(251, 191, 36, 1); }
+}
+
+@keyframes color-fade-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes waiting-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Iris shimmer — very subtle horizontal sweep across the bottom edge */
+@keyframes iris-shimmer {
+  0%   { opacity: 0.5; filter: blur(1.5px) hue-rotate(0deg); }
+  50%  { opacity: 1;   filter: blur(1px)   hue-rotate(30deg); }
+  100% { opacity: 0.5; filter: blur(1.5px) hue-rotate(0deg); }
+}
+

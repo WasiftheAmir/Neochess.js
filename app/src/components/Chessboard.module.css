@@ -1,0 +1,183 @@
+.boardWrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 6px;
+  user-select: none;
+}
+
+.rankLabels {
+  display: flex;
+  flex-direction: column;
+  height: calc(8 * var(--sq));
+}
+
+.boardCol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, var(--sq));
+  grid-template-rows: repeat(8, var(--sq));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    0 0 0 1px var(--border);
+}
+
+.fileLabels {
+  display: flex;
+  flex-direction: row;
+}
+
+.coordLabel {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rankLabels .coordLabel {
+  height: var(--sq);
+  width: 16px;
+}
+
+.fileLabels .coordLabel {
+  width: var(--sq);
+}
+
+/* ── Squares ── */
+.square {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sq);
+  height: var(--sq);
+  cursor: pointer;
+  transition: background-color 0.07s ease;
+}
+
+.light {
+  background-color: var(--sq-light);
+}
+
+.dark {
+  background-color: var(--sq-dark);
+}
+
+.light.lastMove {
+  background-color: #b5e5ff !important;
+}
+
+.dark.lastMove {
+  background-color: #73cbfa !important;
+}
+
+.premoveSquare {
+  background-color: rgba(244, 42, 50, 0.55) !important;
+}
+
+.selected {
+  background-color: var(--sq-selected) !important;
+}
+
+.selfCapturePending {
+  box-shadow: inset 0 0 0 3px rgba(251, 191, 36, 0.85);
+  animation: self-capture-pulse 0.8s ease-in-out infinite alternate;
+}
+
+.dragOver {
+  background-color: var(--sq-selected) !important;
+  outline: 2px solid rgba(56, 189, 248, 0.8);
+  outline-offset: -2px;
+}
+
+/* ── Legal move indicators ── */
+.legalDot {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.legalDot::after {
+  content: '';
+  display: block;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.25);
+  width: 32%;
+  height: 32%;
+}
+
+.light .legalDot::after {
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.dark .legalDot::after {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.legalRing::after {
+  width: 88%;
+  height: 88%;
+  background: transparent;
+  border: 3px solid rgba(0, 0, 0, 0.25);
+}
+
+.light .legalRing::after {
+  border-color: rgba(0, 0, 0, 0.22);
+}
+
+.dark .legalRing::after {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* ── Pieces ── */
+.piece {
+  width: 88%;
+  height: 88%;
+  pointer-events: none;
+  position: relative;
+  z-index: 3;
+  -webkit-user-drag: none;
+  user-select: none;
+  transition: transform 0.05s ease;
+}
+
+.draggable {
+  pointer-events: auto;
+  cursor: grab;
+  -webkit-user-drag: none;
+}
+
+.draggable:active {
+  cursor: grabbing;
+}
+
+.square:active .piece {
+  transform: scale(0.92);
+}
+
+.floatingPiece {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99999;
+  width: var(--sq);
+  height: var(--sq);
+  transform: translate(-50%, -50%) scale(1.12);
+  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.5));
+  will-change: left, top;
+}
+
