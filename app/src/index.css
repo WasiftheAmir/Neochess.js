@@ -91,7 +91,9 @@ select { font-family: 'Inter', system-ui, sans-serif; }
  *  4. IRIDESCENT EDGE SHIMMER — ::after renders the rainbow shimmer line.
  */
 .liquid-glass {
-  background: transparent;
+  background: rgba(10, 10, 10, 0.72);
+  backdrop-filter: var(--lg-blur);
+  -webkit-backdrop-filter: var(--lg-blur);
   border-radius: var(--lg-radius);
   box-shadow:
     /* Thin inner rim — brightens the inside edge of the glass wall */
